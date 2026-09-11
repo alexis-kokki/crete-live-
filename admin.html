@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="el">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Crete Live — Admin</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#f6f1e9;color:#101828}
+    .wrap{max-width:760px;margin:auto;padding:20px}
+    .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+    .brand{font-size:24px;font-weight:800}
+    .sub{color:#667085;font-size:14px}
+    .card{background:#fff;border:1px solid #e7e1d8;border-radius:22px;padding:18px;margin-bottom:16px;box-shadow:0 8px 24px rgba(16,24,40,.05)}
+    .login{max-width:440px;margin:60px auto}
+    input{width:100%;padding:14px 15px;margin-top:10px;border:1px solid #d0d5dd;border-radius:12px;font-size:16px}
+    button{border:0;border-radius:12px;padding:12px 16px;font-weight:800;font-size:15px;cursor:pointer}
+    .primary{background:#b45309;color:white;width:100%;margin-top:14px}
+    .approve{background:#157347;color:#fff}
+    .reject{background:#b42318;color:#fff}
+    .ghost{background:#eef2f6;color:#344054}
+    .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+    .pill{display:inline-block;background:#fff3df;color:#9a4d00;border-radius:999px;padding:6px 10px;font-weight:800;font-size:13px}
+    .confidence{font-weight:800}
+    .meta{display:grid;gap:6px;margin:12px 0;color:#475467}
+    .title{font-size:22px;font-weight:850;margin:10px 0}
+    .original{background:#f9fafb;border-radius:12px;padding:12px;margin-top:12px;white-space:pre-wrap;color:#344054}
+    .hidden{display:none!important}
+    .empty{text-align:center;color:#667085;padding:34px 16px}
+    a{color:#b45309}
+    .error{color:#b42318;margin-top:12px}
+    .ok{color:#157347;margin-top:12px}
+    .count{font-size:15px;color:#667085;margin-bottom:14px}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section id="loginView" class="login card">
+      <div class="brand">Crete Live — Admin</div>
+      <p class="sub">Σύνδεση διαχειριστή</p>
+      <input id="email" type="email" placeholder="Email" autocomplete="email">
+      <input id="password" type="password" placeholder="Password" autocomplete="current-password">
+      <button id="loginBtn" class="primary">Σύνδεση</button>
+      <div id="loginMsg"></div>
+    </section>
+
+    <section id="adminView" class="hidden">
+      <div class="top">
+        <div>
+          <div class="brand">Crete Live — Admin</div>
+          <div class="sub">Εκδηλώσεις προς έλεγχο</div>
+        </div>
+        <button id="logoutBtn" class="ghost">Έξοδος</button>
+      </div>
+
+      <div id="count" class="count"></div>
+      <div id="candidates"></div>
+    </section>
+  </main>
+
+<script>
+const SUPABASE_URL = "https://skstztwseipuqpqtlzfa.supabase.co";
+const SUPABASE_KEY = "sb_publishable_lnNg0aoYe4zsBKkV9XactA_IzcWBdiJ";
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const loginView = document.getElementById("loginView");
+const adminView = document.getElementById("adminView");
+const loginMsg = document.getElementById("loginMsg");
+const candidatesEl = document.getElementById("candidates");
+const countEl = document.getElementById("count");
+
+function esc(v) {
+  return String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
+}
+
+function formatDate(v) {
+  if (!v) return "Χωρίς ημερομηνία";
+  return new Date(v + "T12:00:00").toLocaleDateString("el-GR", {day:"numeric",month:"long",year:"numeric"});
+}
+
+function formatTime(v) {
+  return v ? String(v).slice(0,5) : "Χωρίς ώρα";
+}
+
+async function showCorrectView() {
+  const { data: { session } } = await db.auth.getSession();
+  if (session) {
+    loginView.classList.add("hidden");
+    adminView.classList.remove("hidden");
+    await loadCandidates();
+  } else {
+    adminView.classList.add("hidden");
+    loginView.classList.remove("hidden");
+  }
+}
+
+document.getElementById("loginBtn").addEventListener("click", async () => {
+  loginMsg.textContent = "Σύνδεση...";
+  loginMsg.className = "";
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+
+  const { error } = await db.auth.signInWithPassword({ email, password });
+  if (error) {
+    loginMsg.textContent = "Αποτυχία σύνδεσης: " + error.message;
+    loginMsg.className = "error";
+    return;
+  }
+  loginMsg.textContent = "";
+  await showCorrectView();
+});
+
+document.getElementById("logoutBtn").addEventListener("click", async () => {
+  await db.auth.signOut();
+  await showCorrectView();
+});
+
+async function loadCandidates() {
+  candidatesEl.innerHTML = '<div class="empty">Φόρτωση...</div>';
+
+  const { data, error } = await db
+    .from("ingestion_candidates")
+    .select("*")
+    .eq("review_status", "pending")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    candidatesEl.innerHTML = '<div class="card error">Σφάλμα: ' + esc(error.message) + '</div>';
+    countEl.textContent = "";
+    return;
+  }
+
+  countEl.textContent = data.length === 1 ? "1 εκδήλωση περιμένει έλεγχο" : `${data.length} εκδηλώσεις περιμένουν έλεγχο`;
+
+  if (!data.length) {
+    candidatesEl.innerHTML = '<div class="card empty">Δεν υπάρχουν εκδηλώσεις προς έλεγχο.</div>';
+    return;
+  }
+
+  candidatesEl.innerHTML = data.map(c => {
+    const artists = Array.isArray(c.extracted_artists) ? c.extracted_artists.join(", ") : "";
+    const genres = Array.isArray(c.extracted_genres) ? c.extracted_genres.join(", ") : "";
+    const source = c.source_url ? `<a href="${esc(c.source_url)}" target="_blank" rel="noopener">Άνοιγμα πηγής</a>` : "Χωρίς σύνδεσμο πηγής";
+
+    return `
+      <article class="card">
+        <span class="pill">${esc(c.detection_type || "candidate")}</span>
+        <div class="title">${esc(c.extracted_title || "Χωρίς τίτλο")}</div>
+
+        <div class="meta">
+          <div><strong>Ημερομηνία:</strong> ${esc(formatDate(c.extracted_date))} · ${esc(formatTime(c.extracted_time))}</div>
+          <div><strong>Χώρος:</strong> ${esc(c.extracted_venue || "—")}</div>
+          <div><strong>Περιοχή:</strong> ${esc(c.extracted_city || c.extracted_region || "—")}</div>
+          <div><strong>Καλλιτέχνες:</strong> ${esc(artists || "—")}</div>
+          <div><strong>Είδος:</strong> ${esc(genres || "—")}</div>
+          <div><strong>Τιμή:</strong> ${esc(c.extracted_price || "—")}</div>
+          <div><strong>Τηλέφωνο:</strong> ${esc(c.extracted_phone || "—")}</div>
+          <div class="confidence">Βεβαιότητα: ${esc(c.confidence_score ?? "—")}%</div>
+          <div>${source}</div>
+        </div>
+
+        <div class="original">${esc(c.original_text || "Δεν υπάρχει αρχικό κείμενο.")}</div>
+
+        <div class="actions">
+          <button class="approve" onclick="setStatus('${c.id}','approved')">Έγκριση</button>
+          <button class="reject" onclick="setStatus('${c.id}','rejected')">Απόρριψη</button>
+        </div>
+      </article>
+    `;
+  }).join("");
+}
+
+async function setStatus(id, status) {
+  const question = status === "approved"
+    ? "Να εγκριθεί αυτή η εκδήλωση;"
+    : "Να απορριφθεί αυτή η εκδήλωση;";
+
+  if (!confirm(question)) return;
+
+  const { error } = await db
+    .from("ingestion_candidates")
+    .update({ review_status: status })
+    .eq("id", id);
+
+  if (error) {
+    alert("Σφάλμα: " + error.message);
+    return;
+  }
+
+  await loadCandidates();
+}
+
+showCorrectView();
+</script>
+</body>
+</html>
