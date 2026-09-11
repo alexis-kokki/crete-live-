@@ -30,7 +30,6 @@
     .empty{text-align:center;color:#667085;padding:34px 16px}
     a{color:#b45309}
     .error{color:#b42318;margin-top:12px}
-    .ok{color:#157347;margin-top:12px}
     .count{font-size:15px;color:#667085;margin-bottom:14px}
   </style>
 </head>
@@ -53,7 +52,6 @@
         </div>
         <button id="logoutBtn" class="ghost">Έξοδος</button>
       </div>
-
       <div id="count" class="count"></div>
       <div id="candidates"></div>
     </section>
@@ -83,6 +81,17 @@ function formatTime(v) {
   return v ? String(v).slice(0,5) : "Χωρίς ώρα";
 }
 
+function makeSlug(title, id) {
+  const base = (title || "event")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 45) || "event";
+  return `${base}-${String(id).slice(0,8)}`;
+}
+
 async function showCorrectView() {
   const { data: { session } } = await db.auth.getSession();
   if (session) {
@@ -100,13 +109,14 @@ document.getElementById("loginBtn").addEventListener("click", async () => {
   loginMsg.className = "";
   const email = document.getElementById("email").value.trim();
   const password = document.getElementById("password").value;
-
   const { error } = await db.auth.signInWithPassword({ email, password });
+
   if (error) {
     loginMsg.textContent = "Αποτυχία σύνδεσης: " + error.message;
     loginMsg.className = "error";
     return;
   }
+
   loginMsg.textContent = "";
   await showCorrectView();
 });
@@ -131,7 +141,10 @@ async function loadCandidates() {
     return;
   }
 
-  countEl.textContent = data.length === 1 ? "1 εκδήλωση περιμένει έλεγχο" : `${data.length} εκδηλώσεις περιμένουν έλεγχο`;
+  window.currentCandidates = data || [];
+  countEl.textContent = data.length === 1
+    ? "1 εκδήλωση περιμένει έλεγχο"
+    : `${data.length} εκδηλώσεις περιμένουν έλεγχο`;
 
   if (!data.length) {
     candidatesEl.innerHTML = '<div class="card empty">Δεν υπάρχουν εκδηλώσεις προς έλεγχο.</div>';
@@ -141,13 +154,14 @@ async function loadCandidates() {
   candidatesEl.innerHTML = data.map(c => {
     const artists = Array.isArray(c.extracted_artists) ? c.extracted_artists.join(", ") : "";
     const genres = Array.isArray(c.extracted_genres) ? c.extracted_genres.join(", ") : "";
-    const source = c.source_url ? `<a href="${esc(c.source_url)}" target="_blank" rel="noopener">Άνοιγμα πηγής</a>` : "Χωρίς σύνδεσμο πηγής";
+    const source = c.source_url
+      ? `<a href="${esc(c.source_url)}" target="_blank" rel="noopener">Άνοιγμα πηγής</a>`
+      : "Χωρίς σύνδεσμο πηγής";
 
     return `
       <article class="card">
         <span class="pill">${esc(c.detection_type || "candidate")}</span>
         <div class="title">${esc(c.extracted_title || "Χωρίς τίτλο")}</div>
-
         <div class="meta">
           <div><strong>Ημερομηνία:</strong> ${esc(formatDate(c.extracted_date))} · ${esc(formatTime(c.extracted_time))}</div>
           <div><strong>Χώρος:</strong> ${esc(c.extracted_venue || "—")}</div>
@@ -159,28 +173,73 @@ async function loadCandidates() {
           <div class="confidence">Βεβαιότητα: ${esc(c.confidence_score ?? "—")}%</div>
           <div>${source}</div>
         </div>
-
         <div class="original">${esc(c.original_text || "Δεν υπάρχει αρχικό κείμενο.")}</div>
-
         <div class="actions">
-          <button class="approve" onclick="setStatus('${c.id}','approved')">Έγκριση</button>
-          <button class="reject" onclick="setStatus('${c.id}','rejected')">Απόρριψη</button>
+          <button class="approve" onclick="approveCandidate('${c.id}')">Έγκριση & Δημοσίευση</button>
+          <button class="reject" onclick="rejectCandidate('${c.id}')">Απόρριψη</button>
         </div>
       </article>
     `;
   }).join("");
 }
 
-async function setStatus(id, status) {
-  const question = status === "approved"
-    ? "Να εγκριθεί αυτή η εκδήλωση;"
-    : "Να απορριφθεί αυτή η εκδήλωση;";
+async function approveCandidate(id) {
+  const c = (window.currentCandidates || []).find(x => x.id === id);
+  if (!c) return;
 
-  if (!confirm(question)) return;
+  if (!confirm("Να εγκριθεί και να δημοσιευτεί αυτή η εκδήλωση στο Crete Live;")) return;
+
+  const eventRow = {
+    title: c.extracted_title || "Live εκδήλωση",
+    slug: makeSlug(c.extracted_title, c.id),
+    description: c.original_text || null,
+    event_date: c.extracted_date,
+    start_time: c.extracted_time,
+    region: c.extracted_region || null,
+    city: c.extracted_city || null,
+    address: c.extracted_venue || null,
+    price_text: c.extracted_price || null,
+    phone: c.extracted_phone || null,
+    status: "published",
+    created_via: "manual",
+    confidence_score: c.confidence_score ?? null,
+    last_verified_at: new Date().toISOString()
+  };
+
+  const { data: inserted, error: insertError } = await db
+    .from("events")
+    .insert(eventRow)
+    .select("id")
+    .single();
+
+  if (insertError) {
+    alert("Δεν δημοσιεύτηκε. Σφάλμα: " + insertError.message);
+    return;
+  }
+
+  const { error: updateError } = await db
+    .from("ingestion_candidates")
+    .update({
+      review_status: "approved",
+      possible_duplicate_event_id: inserted.id
+    })
+    .eq("id", id);
+
+  if (updateError) {
+    alert("Το event δημοσιεύτηκε, αλλά δεν ενημερώθηκε σωστά το candidate: " + updateError.message);
+    return;
+  }
+
+  alert("Η εκδήλωση εγκρίθηκε και δημοσιεύτηκε!");
+  await loadCandidates();
+}
+
+async function rejectCandidate(id) {
+  if (!confirm("Να απορριφθεί αυτή η εκδήλωση;")) return;
 
   const { error } = await db
     .from("ingestion_candidates")
-    .update({ review_status: status })
+    .update({ review_status: "rejected" })
     .eq("id", id);
 
   if (error) {
