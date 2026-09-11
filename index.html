@@ -3,50 +3,83 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#0f172a" />
+  <meta name="theme-color" content="#0b1220" />
   <title>Crete Live — Ζωντανή μουσική στην Κρήτη</title>
+  <meta name="description" content="Βρες live μουσική, κρητικά, ρεμπέτικα, λαϊκά και έντεχνα σε όλη την Κρήτη." />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header class="topbar">
-    <div class="brand">
+    <a class="brand" href="#">
       <div class="brand-mark">♪</div>
       <div>
         <div class="brand-name">Crete Live</div>
-        <div class="brand-sub">Η μουσική της Κρήτης, κάθε βράδυ</div>
+        <div class="brand-sub">Η Κρήτη παίζει απόψε</div>
       </div>
-    </div>
-    <button class="icon-btn" aria-label="Μενού">☰</button>
+    </a>
+    <button class="icon-btn" id="menuBtn" aria-label="Μενού">☰</button>
   </header>
 
   <main>
     <section class="hero">
-      <div class="hero-overlay"></div>
+      <div class="hero-shade"></div>
       <div class="hero-content">
-        <span class="eyebrow">Απόψε στην Κρήτη</span>
-        <h1>Βρες πού παίζει<br>ζωντανή μουσική.</h1>
-        <p>Ρεμπέτικα, κρητικά, λαϊκά, έντεχνα και live βραδιές — όλα σε ένα μέρος.</p>
+        <span class="eyebrow">Live μουσική στην Κρήτη</span>
+        <h1>Βρες πού παίζει<br>απόψε.</h1>
+        <p>Κρητικά, ρεμπέτικα, λαϊκά, έντεχνα και μουσικές βραδιές σε ένα μέρος.</p>
 
         <div class="search-card">
-          <label>
-            <span>Πού θέλεις να βγεις;</span>
-            <div class="search-row">
-              <input id="searchInput" type="search" placeholder="π.χ. Ηράκλειο, Ρέθυμνο..." />
-              <button id="searchBtn">Αναζήτηση</button>
-            </div>
-          </label>
+          <div class="search-row">
+            <input id="searchInput" type="search" placeholder="Μαγαζί, καλλιτέχνης ή περιοχή..." />
+            <button id="searchBtn">Βρες live</button>
+          </div>
+        </div>
+
+        <div class="hero-stats">
+          <div><strong>4</strong><span>νομοί</span></div>
+          <div><strong>24+</strong><span>χώροι</span></div>
+          <div><strong>Καθημερινά</strong><span>νέα live</span></div>
         </div>
       </div>
     </section>
 
-    <section class="section">
+    <section class="section filter-section">
       <div class="section-head">
         <div>
-          <span class="kicker">Γρήγορη επιλογή</span>
-          <h2>Τι ψάχνεις;</h2>
+          <span class="kicker">Πότε</span>
+          <h2>Διάλεξε ημέρα</h2>
+        </div>
+      </div>
+
+      <div class="chips" id="dateChips">
+        <button class="chip active" data-date="all">Όλα</button>
+        <button class="chip" data-date="Σήμερα">Σήμερα</button>
+        <button class="chip" data-date="Αύριο">Αύριο</button>
+        <button class="chip" data-date="Σαββατοκύριακο">ΣΚ</button>
+      </div>
+
+      <div class="section-head smaller">
+        <div>
+          <span class="kicker">Πού</span>
+          <h2>Περιοχή</h2>
+        </div>
+      </div>
+
+      <div class="chips" id="regionChips">
+        <button class="chip active" data-region="all">Όλη η Κρήτη</button>
+        <button class="chip" data-region="Ηράκλειο">Ηράκλειο</button>
+        <button class="chip" data-region="Χανιά">Χανιά</button>
+        <button class="chip" data-region="Ρέθυμνο">Ρέθυμνο</button>
+        <button class="chip" data-region="Λασίθι">Λασίθι</button>
+      </div>
+
+      <div class="section-head smaller">
+        <div>
+          <span class="kicker">Τι μουσική</span>
+          <h2>Είδος</h2>
         </div>
       </div>
 
@@ -62,25 +95,27 @@
     <section class="section compact">
       <div class="section-head">
         <div>
-          <span class="kicker">Προτεινόμενα</span>
-          <h2>Live για απόψε</h2>
+          <span class="kicker">Προτάσεις</span>
+          <h2 id="resultsTitle">Live που αξίζουν</h2>
         </div>
-        <button class="text-btn" id="showAllBtn">Όλα</button>
+        <button class="text-btn" id="clearFilters">Καθαρισμός</button>
       </div>
 
       <div class="events" id="eventsContainer"></div>
       <div id="emptyState" class="empty hidden">
-        Δεν βρέθηκε εκδήλωση με αυτά τα φίλτρα.
+        <div class="empty-icon">♪</div>
+        <h3>Δεν βρέθηκε live</h3>
+        <p>Δοκίμασε άλλη περιοχή, ημέρα ή είδος μουσικής.</p>
       </div>
     </section>
 
     <section class="section map-cta">
       <div>
         <span class="kicker light">Κοντά σου</span>
-        <h2>Δες τα live στον χάρτη</h2>
-        <p>Βρες γρήγορα τι παίζει κοντά σου και πόσο απέχει.</p>
+        <h2>Όλα τα live στον χάρτη</h2>
+        <p>Άνοιξε τον χάρτη και δες τι παίζει κοντά σου.</p>
       </div>
-      <button class="secondary-btn">Άνοιγμα χάρτη</button>
+      <a class="secondary-btn" href="https://www.google.com/maps/search/live+music+crete" target="_blank" rel="noopener">Άνοιγμα χάρτη</a>
     </section>
 
     <section class="section">
@@ -92,17 +127,43 @@
       </div>
       <div class="submit-card">
         <div>
-          <h3>Πρόσθεσε τη βραδιά σου</h3>
-          <p>Στείλε τα στοιχεία της εκδήλωσης και θα εμφανιστεί στην πλατφόρμα μετά από έλεγχο.</p>
+          <h3>Πρόσθεσε την εκδήλωσή σου</h3>
+          <p>Στείλε ημερομηνία, χώρο, καλλιτέχνες και στοιχεία επικοινωνίας. Η καταχώριση εμφανίζεται μετά από έλεγχο.</p>
         </div>
-        <button class="primary-btn">Υποβολή εκδήλωσης</button>
+        <button class="primary-btn" id="submitEventBtn">Υποβολή εκδήλωσης</button>
       </div>
     </section>
   </main>
 
+  <div class="modal-backdrop hidden" id="eventModal">
+    <div class="modal">
+      <button class="modal-close" id="modalClose" aria-label="Κλείσιμο">×</button>
+      <img id="modalImage" class="modal-image" alt="">
+      <div class="modal-content">
+        <span id="modalBadge" class="badge inline-badge"></span>
+        <h2 id="modalTitle"></h2>
+        <p id="modalVenue" class="modal-venue"></p>
+
+        <div class="detail-grid">
+          <div><span>Ημέρα</span><strong id="modalDate"></strong></div>
+          <div><span>Ώρα</span><strong id="modalTime"></strong></div>
+          <div><span>Περιοχή</span><strong id="modalRegion"></strong></div>
+          <div><span>Είσοδος</span><strong id="modalPrice"></strong></div>
+        </div>
+
+        <p id="modalDescription" class="modal-description"></p>
+
+        <div class="modal-actions">
+          <a id="mapsLink" class="primary-link" target="_blank" rel="noopener">Οδηγίες</a>
+          <a id="phoneLink" class="secondary-link">Κράτηση</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <nav class="bottom-nav">
     <button class="nav-item active"><span>⌂</span><small>Αρχική</small></button>
-    <button class="nav-item"><span>⌕</span><small>Αναζήτηση</small></button>
+    <button class="nav-item" id="bottomSearch"><span>⌕</span><small>Αναζήτηση</small></button>
     <button class="nav-item"><span>♡</span><small>Αγαπημένα</small></button>
     <button class="nav-item"><span>☻</span><small>Προφίλ</small></button>
   </nav>
