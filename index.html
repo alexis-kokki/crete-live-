@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>Crete Live — Ζωντανή μουσική στην Κρήτη</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">♪</div>
+      <div>
+        <div class="brand-name">Crete Live</div>
+        <div class="brand-sub">Η μουσική της Κρήτης, κάθε βράδυ</div>
+      </div>
+    </div>
+    <button class="icon-btn" aria-label="Μενού">☰</button>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-overlay"></div>
+      <div class="hero-content">
+        <span class="eyebrow">Απόψε στην Κρήτη</span>
+        <h1>Βρες πού παίζει<br>ζωντανή μουσική.</h1>
+        <p>Ρεμπέτικα, κρητικά, λαϊκά, έντεχνα και live βραδιές — όλα σε ένα μέρος.</p>
+
+        <div class="search-card">
+          <label>
+            <span>Πού θέλεις να βγεις;</span>
+            <div class="search-row">
+              <input id="searchInput" type="search" placeholder="π.χ. Ηράκλειο, Ρέθυμνο..." />
+              <button id="searchBtn">Αναζήτηση</button>
+            </div>
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <div>
+          <span class="kicker">Γρήγορη επιλογή</span>
+          <h2>Τι ψάχνεις;</h2>
+        </div>
+      </div>
+
+      <div class="chips" id="genreChips">
+        <button class="chip active" data-genre="all">Όλα</button>
+        <button class="chip" data-genre="Κρητικά">Κρητικά</button>
+        <button class="chip" data-genre="Ρεμπέτικα">Ρεμπέτικα</button>
+        <button class="chip" data-genre="Λαϊκά">Λαϊκά</button>
+        <button class="chip" data-genre="Έντεχνα">Έντεχνα</button>
+      </div>
+    </section>
+
+    <section class="section compact">
+      <div class="section-head">
+        <div>
+          <span class="kicker">Προτεινόμενα</span>
+          <h2>Live για απόψε</h2>
+        </div>
+        <button class="text-btn" id="showAllBtn">Όλα</button>
+      </div>
+
+      <div class="events" id="eventsContainer"></div>
+      <div id="emptyState" class="empty hidden">
+        Δεν βρέθηκε εκδήλωση με αυτά τα φίλτρα.
+      </div>
+    </section>
+
+    <section class="section map-cta">
+      <div>
+        <span class="kicker light">Κοντά σου</span>
+        <h2>Δες τα live στον χάρτη</h2>
+        <p>Βρες γρήγορα τι παίζει κοντά σου και πόσο απέχει.</p>
+      </div>
+      <button class="secondary-btn">Άνοιγμα χάρτη</button>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <div>
+          <span class="kicker">Για μαγαζιά & διοργανωτές</span>
+          <h2>Έχεις live;</h2>
+        </div>
+      </div>
+      <div class="submit-card">
+        <div>
+          <h3>Πρόσθεσε τη βραδιά σου</h3>
+          <p>Στείλε τα στοιχεία της εκδήλωσης και θα εμφανιστεί στην πλατφόρμα μετά από έλεγχο.</p>
+        </div>
+        <button class="primary-btn">Υποβολή εκδήλωσης</button>
+      </div>
+    </section>
+  </main>
+
+  <nav class="bottom-nav">
+    <button class="nav-item active"><span>⌂</span><small>Αρχική</small></button>
+    <button class="nav-item"><span>⌕</span><small>Αναζήτηση</small></button>
+    <button class="nav-item"><span>♡</span><small>Αγαπημένα</small></button>
+    <button class="nav-item"><span>☻</span><small>Προφίλ</small></button>
+  </nav>
+
+  <script src="app.js"></script>
+</body>
+</html>
