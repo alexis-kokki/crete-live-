@@ -66,12 +66,21 @@
 
     <div class="tabs">
       <button id="tabPending" class="tab active">Προς έλεγχο</button>
+      <button id="tabPublished" class="tab">Δημοσιευμένες</button>
       <button id="tabNew" class="tab">+ Νέα εκδήλωση</button>
     </div>
 
     <section id="pendingView">
       <div id="count" class="count"></div>
       <div id="candidates"></div>
+    </section>
+
+    <section id="publishedView" class="hidden">
+      <div class="card">
+        <input id="publishedSearch" placeholder="Αναζήτηση τίτλου, πόλης ή χώρου">
+      </div>
+      <div id="publishedCount" class="count"></div>
+      <div id="publishedList"></div>
     </section>
 
     <section id="newView" class="hidden">
@@ -222,15 +231,18 @@ document.getElementById("logoutBtn").addEventListener("click", async () => {
 });
 
 document.getElementById("tabPending").addEventListener("click", () => setTab("pending"));
+document.getElementById("tabPublished").addEventListener("click", () => setTab("published"));
 document.getElementById("tabNew").addEventListener("click", () => setTab("new"));
 
 function setTab(which) {
-  const pending = which === "pending";
-  document.getElementById("pendingView").classList.toggle("hidden", !pending);
-  document.getElementById("newView").classList.toggle("hidden", pending);
-  document.getElementById("tabPending").classList.toggle("active", pending);
-  document.getElementById("tabNew").classList.toggle("active", !pending);
-  if (pending) loadCandidates();
+  ["pending","published","new"].forEach(name => {
+    document.getElementById(name + "View").classList.toggle("hidden", name !== which);
+  });
+  document.getElementById("tabPending").classList.toggle("active", which === "pending");
+  document.getElementById("tabPublished").classList.toggle("active", which === "published");
+  document.getElementById("tabNew").classList.toggle("active", which === "new");
+  if (which === "pending") loadCandidates();
+  if (which === "published") loadPublished();
 }
 
 async function loadCandidates() {
@@ -473,6 +485,69 @@ document.getElementById("publishManualBtn").addEventListener("click", async () =
     btn.textContent = "Δημοσίευση εκδήλωσης";
   }
 });
+
+async function loadPublished() {
+  const list = document.getElementById("publishedList");
+  list.innerHTML = '<div class="empty">Φόρτωση...</div>';
+  const { data, error } = await db.from("events")
+    .select("id,title,event_date,start_time,city,region,address,price_text,phone,description,poster_url,venue_id")
+    .eq("status","published")
+    .order("event_date", {ascending:true});
+  if (error) { list.innerHTML = '<div class="card error">Σφάλμα: ' + esc(error.message) + '</div>'; return; }
+  window.publishedEvents = data || [];
+  renderPublished();
+}
+
+function renderPublished() {
+  const q = document.getElementById("publishedSearch").value.trim().toLowerCase();
+  const data = (window.publishedEvents || []).filter(e => !q || [e.title,e.city,e.region,e.address].join(" ").toLowerCase().includes(q));
+  document.getElementById("publishedCount").textContent = data.length + " δημοσιευμένες εκδηλώσεις";
+  document.getElementById("publishedList").innerHTML = data.length ? data.map(e => `
+    <article class="card">
+      <div class="title">${esc(e.title)}</div>
+      <div class="meta">
+        <div><strong>Ημερομηνία:</strong> ${esc(formatDate(e.event_date))} · ${esc(formatTime(e.start_time))}</div>
+        <div><strong>Περιοχή:</strong> ${esc(e.city || e.region || "—")}</div>
+        <div><strong>Διεύθυνση:</strong> ${esc(e.address || "—")}</div>
+        <div><strong>Τιμή:</strong> ${esc(e.price_text || "—")}</div>
+      </div>
+      <div class="actions">
+        <button class="primary" onclick="editEvent('${e.id}')">Επεξεργασία</button>
+        <button class="reject" onclick="deleteEvent('${e.id}')">Διαγραφή</button>
+      </div>
+    </article>`).join("") : '<div class="card empty">Δεν βρέθηκαν εκδηλώσεις.</div>';
+}
+
+document.getElementById("publishedSearch").addEventListener("input", renderPublished);
+
+async function editEvent(id) {
+  const e = (window.publishedEvents || []).find(x => x.id === id);
+  if (!e) return;
+  const title = prompt("Τίτλος", e.title || ""); if (title === null) return;
+  const date = prompt("Ημερομηνία (YYYY-MM-DD)", e.event_date || ""); if (date === null) return;
+  const time = prompt("Ώρα (HH:MM)", (e.start_time || "").slice(0,5)); if (time === null) return;
+  const city = prompt("Πόλη", e.city || ""); if (city === null) return;
+  const price = prompt("Τιμή / είσοδος", e.price_text || ""); if (price === null) return;
+  const { error } = await db.from("events").update({
+    title:title.trim(), event_date:date.trim(), start_time:time.trim(), city:city.trim(),
+    price_text:price.trim() || null, last_verified_at:new Date().toISOString()
+  }).eq("id", id);
+  if (error) return alert("Σφάλμα: " + error.message);
+  alert("Οι αλλαγές αποθηκεύτηκαν!");
+  await loadPublished();
+}
+
+async function deleteEvent(id) {
+  const e = (window.publishedEvents || []).find(x => x.id === id);
+  if (!confirm(`Να διαγραφεί οριστικά η εκδήλωση «${e?.title || ""}»;`)) return;
+  await db.from("event_artists").delete().eq("event_id", id);
+  await db.from("event_genres").delete().eq("event_id", id);
+  await db.from("ingestion_candidates").update({possible_duplicate_event_id:null}).eq("possible_duplicate_event_id", id);
+  const { error } = await db.from("events").delete().eq("id", id);
+  if (error) return alert("Δεν διαγράφηκε: " + error.message);
+  alert("Η εκδήλωση διαγράφηκε.");
+  await loadPublished();
+}
 
 showCorrectView();
 </script>
