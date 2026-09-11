@@ -8,7 +8,7 @@
   <style>
     *{box-sizing:border-box}
     body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#f6f1e9;color:#101828}
-    .wrap{max-width:820px;margin:auto;padding:18px}
+    .wrap{max-width:900px;margin:auto;padding:18px}
     .top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px}
     .brand{font-size:24px;font-weight:850}
     .sub{color:#667085;font-size:14px}
@@ -18,17 +18,19 @@
     textarea{min-height:90px;resize:vertical}
     label{display:block;font-size:13px;font-weight:800;color:#475467;margin-top:12px}
     button{border:0;border-radius:12px;padding:12px 16px;font-weight:800;font-size:15px;cursor:pointer}
+    button:disabled{opacity:.55;cursor:not-allowed}
     .primary{background:#b45309;color:#fff}
     .full{width:100%;margin-top:14px}
     .approve{background:#157347;color:#fff}
-    .reject{background:#b42318;color:#fff}
+    .reject,.danger{background:#b42318;color:#fff}
+    .edit{background:#175cd3;color:#fff;text-decoration:none;border-radius:12px;padding:12px 16px;font-weight:800;font-size:15px;display:inline-block}
     .ghost{background:#eef2f6;color:#344054}
     .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
-    .tabs{display:flex;gap:8px;overflow:auto;margin-bottom:16px}
+    .tabs{display:flex;gap:8px;overflow:auto;margin-bottom:16px;padding-bottom:2px}
     .tab{background:#eee8df;color:#344054;white-space:nowrap}
     .tab.active{background:#101828;color:white}
     .pill{display:inline-block;background:#fff3df;color:#9a4d00;border-radius:999px;padding:6px 10px;font-weight:800;font-size:13px}
-    .confidence{font-weight:800}
+    .published-pill{background:#ecfdf3;color:#027a48}
     .meta{display:grid;gap:6px;margin:12px 0;color:#475467}
     .title{font-size:22px;font-weight:850;margin:10px 0}
     .original{background:#f9fafb;border-radius:12px;padding:12px;margin-top:12px;white-space:pre-wrap;color:#344054}
@@ -40,8 +42,10 @@
     .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
     .form-title{font-size:21px;font-weight:850;margin:0 0 6px}
     .hint{font-size:12px;color:#667085;margin-top:5px}
+    .toolbar{display:flex;gap:10px;align-items:center;margin-bottom:14px}
+    .toolbar input{margin-top:0}
     a{color:#b45309}
-    @media (max-width:620px){.grid2{grid-template-columns:1fr}}
+    @media (max-width:620px){.grid2{grid-template-columns:1fr}.toolbar{flex-direction:column;align-items:stretch}}
   </style>
 </head>
 <body>
@@ -49,8 +53,8 @@
   <section id="loginView" class="login card">
     <div class="brand">Crete Live — Admin</div>
     <p class="sub">Σύνδεση διαχειριστή</p>
-    <input id="email" type="email" placeholder="Email" autocomplete="email">
-    <input id="password" type="password" placeholder="Password" autocomplete="current-password">
+    <input id="email" type="email" placeholder="Email">
+    <input id="password" type="password" placeholder="Password">
     <button id="loginBtn" class="primary full">Σύνδεση</button>
     <div id="loginMsg"></div>
   </section>
@@ -76,8 +80,9 @@
     </section>
 
     <section id="publishedView" class="hidden">
-      <div class="card">
+      <div class="toolbar">
         <input id="publishedSearch" placeholder="Αναζήτηση τίτλου, πόλης ή χώρου">
+        <button id="refreshPublished" class="ghost">Ανανέωση</button>
       </div>
       <div id="publishedCount" class="count"></div>
       <div id="publishedList"></div>
@@ -88,68 +93,31 @@
         <div class="form-title">Νέα εκδήλωση</div>
         <div class="sub">Χειροκίνητη καταχώρηση και άμεση δημοσίευση.</div>
 
-        <label>Τίτλος *</label>
-        <input id="fTitle" placeholder="π.χ. Κρητική βραδιά στο Ρακάδικο">
-
+        <label>Τίτλος *</label><input id="fTitle">
         <div class="grid2">
-          <div>
-            <label>Ημερομηνία *</label>
-            <input id="fDate" type="date">
-          </div>
-          <div>
-            <label>Ώρα έναρξης *</label>
-            <input id="fTime" type="time">
-          </div>
+          <div><label>Ημερομηνία *</label><input id="fDate" type="date"></div>
+          <div><label>Ώρα έναρξης *</label><input id="fTime" type="time"></div>
         </div>
-
-        <label>Χώρος / μαγαζί *</label>
-        <input id="fVenue" placeholder="π.χ. Ρακάδικο Κρήτης">
-
+        <label>Χώρος / μαγαζί *</label><input id="fVenue">
         <div class="grid2">
-          <div>
-            <label>Πόλη *</label>
-            <input id="fCity" placeholder="π.χ. Ηράκλειο">
-          </div>
+          <div><label>Πόλη *</label><input id="fCity"></div>
           <div>
             <label>Νομός / περιοχή *</label>
             <select id="fRegion">
               <option value="">Επιλογή</option>
-              <option>Ηράκλειο</option>
-              <option>Χανιά</option>
-              <option>Ρέθυμνο</option>
-              <option>Λασίθι</option>
+              <option>Ηράκλειο</option><option>Χανιά</option><option>Ρέθυμνο</option><option>Λασίθι</option>
             </select>
           </div>
         </div>
-
-        <label>Διεύθυνση</label>
-        <input id="fAddress" placeholder="π.χ. Κέντρο Ηρακλείου">
-
-        <label>Καλλιτέχνες</label>
-        <input id="fArtists" placeholder="π.χ. Μανώλης Χ, Γιώργος Ψ">
-        <div class="hint">Για περισσότερους, χώρισέ τους με κόμμα.</div>
-
-        <label>Είδη μουσικής</label>
-        <input id="fGenres" placeholder="π.χ. Κρητικά, Ρεμπέτικα">
-        <div class="hint">Για περισσότερα, χώρισέ τα με κόμμα.</div>
-
+        <label>Διεύθυνση</label><input id="fAddress">
+        <label>Καλλιτέχνες</label><input id="fArtists">
+        <label>Είδη μουσικής</label><input id="fGenres">
         <div class="grid2">
-          <div>
-            <label>Τιμή / είσοδος</label>
-            <input id="fPrice" placeholder="π.χ. Είσοδος ελεύθερη">
-          </div>
-          <div>
-            <label>Τηλέφωνο</label>
-            <input id="fPhone" placeholder="2810...">
-          </div>
+          <div><label>Τιμή / είσοδος</label><input id="fPrice"></div>
+          <div><label>Τηλέφωνο</label><input id="fPhone"></div>
         </div>
-
-        <label>Poster / εικόνα URL</label>
-        <input id="fPoster" placeholder="https://...">
-
-        <label>Περιγραφή</label>
-        <textarea id="fDescription" placeholder="Προαιρετική περιγραφή"></textarea>
-
+        <label>Poster / εικόνα URL</label><input id="fPoster">
+        <label>Περιγραφή</label><textarea id="fDescription"></textarea>
         <button id="publishManualBtn" class="approve full">Δημοσίευση εκδήλωσης</button>
         <div id="manualMsg"></div>
       </div>
@@ -158,396 +126,181 @@
 </main>
 
 <script>
-const SUPABASE_URL = "https://skstztwseipuqpqtlzfa.supabase.co";
-const SUPABASE_KEY = "sb_publishable_lnNg0aoYe4zsBKkV9XactA_IzcWBdiJ";
-const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-const loginView = document.getElementById("loginView");
-const adminView = document.getElementById("adminView");
-const loginMsg = document.getElementById("loginMsg");
-const candidatesEl = document.getElementById("candidates");
-const countEl = document.getElementById("count");
+const db = window.supabase.createClient("https://skstztwseipuqpqtlzfa.supabase.co", "sb_publishable_lnNg0aoYe4zsBKkV9XactA_IzcWBdiJ");
+const $ = id => document.getElementById(id);
 
 function esc(v) {
   return String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
 }
-
-function slugify(text) {
-  const greek = {
-    'α':'a','β':'v','γ':'g','δ':'d','ε':'e','ζ':'z','η':'i','θ':'th','ι':'i','κ':'k','λ':'l','μ':'m','ν':'n','ξ':'x','ο':'o','π':'p','ρ':'r','σ':'s','ς':'s','τ':'t','υ':'y','φ':'f','χ':'ch','ψ':'ps','ω':'o'
-  };
-  return String(text || "")
-    .toLowerCase()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
-    .split("").map(ch => greek[ch] || ch).join("")
-    .replace(/[^a-z0-9]+/g,"-")
-    .replace(/^-+|-+$/g,"")
-    .slice(0,55) || "item";
+function slugify(text){
+  const greek={'α':'a','β':'v','γ':'g','δ':'d','ε':'e','ζ':'z','η':'i','θ':'th','ι':'i','κ':'k','λ':'l','μ':'m','ν':'n','ξ':'x','ο':'o','π':'p','ρ':'r','σ':'s','ς':'s','τ':'t','υ':'y','φ':'f','χ':'ch','ψ':'ps','ω':'o'};
+  return String(text||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .split("").map(ch=>greek[ch]||ch).join("").replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,55)||"item";
 }
+function uniqueSlug(text){ return slugify(text)+"-"+Date.now().toString(36); }
+function formatDate(v){ return v ? new Date(v+"T12:00:00").toLocaleDateString("el-GR",{day:"numeric",month:"long",year:"numeric"}) : "Χωρίς ημερομηνία"; }
+function formatTime(v){ return v ? String(v).slice(0,5) : "Χωρίς ώρα"; }
+function splitCSV(v){ return String(v||"").split(",").map(x=>x.trim()).filter(Boolean); }
 
-function uniqueSlug(text) {
-  return slugify(text) + "-" + Date.now().toString(36);
+async function showCorrectView(){
+  const {data:{session}} = await db.auth.getSession();
+  $("loginView").classList.toggle("hidden", !!session);
+  $("adminView").classList.toggle("hidden", !session);
+  if(session) await loadCandidates();
 }
+$("loginBtn").onclick = async()=>{
+  $("loginMsg").textContent="Σύνδεση...";
+  const {error} = await db.auth.signInWithPassword({email:$("email").value.trim(),password:$("password").value});
+  if(error){$("loginMsg").textContent="Αποτυχία σύνδεσης: "+error.message;$("loginMsg").className="error";return;}
+  $("loginMsg").textContent=""; await showCorrectView();
+};
+$("logoutBtn").onclick = async()=>{await db.auth.signOut();await showCorrectView();};
 
-function formatDate(v) {
-  if (!v) return "Χωρίς ημερομηνία";
-  return new Date(v + "T12:00:00").toLocaleDateString("el-GR", {day:"numeric",month:"long",year:"numeric"});
-}
-
-function formatTime(v) {
-  return v ? String(v).slice(0,5) : "Χωρίς ώρα";
-}
-
-async function showCorrectView() {
-  const { data: { session } } = await db.auth.getSession();
-  if (session) {
-    loginView.classList.add("hidden");
-    adminView.classList.remove("hidden");
-    await loadCandidates();
-  } else {
-    adminView.classList.add("hidden");
-    loginView.classList.remove("hidden");
+function setTab(which){
+  for(const name of ["pending","published","new"]){
+    $(name+"View").classList.toggle("hidden",name!==which);
+    $("tab"+name[0].toUpperCase()+name.slice(1)).classList.toggle("active",name===which);
   }
+  if(which==="pending") loadCandidates();
+  if(which==="published") loadPublished();
+}
+$("tabPending").onclick=()=>setTab("pending");
+$("tabPublished").onclick=()=>setTab("published");
+$("tabNew").onclick=()=>setTab("new");
+
+async function getOrCreate(table,name){
+  const clean=String(name||"").trim(); if(!clean)return null;
+  const {data:existing,error:findError}=await db.from(table).select("id").ilike("name",clean).limit(1);
+  if(findError)throw findError;
+  if(existing?.length)return existing[0].id;
+  const {data:created,error:createError}=await db.from(table).insert({name:clean,slug:uniqueSlug(clean)}).select("id").single();
+  if(createError)throw createError; return created.id;
+}
+async function getOrCreateVenue(name,city,region,address,phone){
+  const clean=String(name||"").trim(); if(!clean)return null;
+  const {data:existing,error:findError}=await db.from("venues").select("id").ilike("name",clean).limit(1);
+  if(findError)throw findError;
+  if(existing?.length)return existing[0].id;
+  const {data:created,error:createError}=await db.from("venues").insert({
+    name:clean,slug:uniqueSlug(clean),city:city||null,region:region||null,address:address||null,phone:phone||null
+  }).select("id").single();
+  if(createError)throw createError; return created.id;
 }
 
-document.getElementById("loginBtn").addEventListener("click", async () => {
-  loginMsg.textContent = "Σύνδεση...";
-  loginMsg.className = "";
-  const email = document.getElementById("email").value.trim();
-  const password = document.getElementById("password").value;
-  const { error } = await db.auth.signInWithPassword({email,password});
-  if (error) {
-    loginMsg.textContent = "Αποτυχία σύνδεσης: " + error.message;
-    loginMsg.className = "error";
-    return;
-  }
-  loginMsg.textContent = "";
-  await showCorrectView();
-});
-
-document.getElementById("logoutBtn").addEventListener("click", async () => {
-  await db.auth.signOut();
-  await showCorrectView();
-});
-
-document.getElementById("tabPending").addEventListener("click", () => setTab("pending"));
-document.getElementById("tabPublished").addEventListener("click", () => setTab("published"));
-document.getElementById("tabNew").addEventListener("click", () => setTab("new"));
-
-function setTab(which) {
-  ["pending","published","new"].forEach(name => {
-    document.getElementById(name + "View").classList.toggle("hidden", name !== which);
-  });
-  document.getElementById("tabPending").classList.toggle("active", which === "pending");
-  document.getElementById("tabPublished").classList.toggle("active", which === "published");
-  document.getElementById("tabNew").classList.toggle("active", which === "new");
-  if (which === "pending") loadCandidates();
-  if (which === "published") loadPublished();
-}
-
-async function loadCandidates() {
-  candidatesEl.innerHTML = '<div class="empty">Φόρτωση...</div>';
-  const { data, error } = await db
-    .from("ingestion_candidates")
-    .select("*")
-    .eq("review_status","pending")
-    .order("created_at",{ascending:false});
-
-  if (error) {
-    candidatesEl.innerHTML = '<div class="card error">Σφάλμα: ' + esc(error.message) + '</div>';
-    countEl.textContent = "";
-    return;
-  }
-
-  window.currentCandidates = data || [];
-  countEl.textContent = data.length === 1 ? "1 εκδήλωση περιμένει έλεγχο" : `${data.length} εκδηλώσεις περιμένουν έλεγχο`;
-
-  if (!data.length) {
-    candidatesEl.innerHTML = '<div class="card empty">Δεν υπάρχουν εκδηλώσεις προς έλεγχο.</div>';
-    return;
-  }
-
-  candidatesEl.innerHTML = data.map(c => {
-    const artists = Array.isArray(c.extracted_artists) ? c.extracted_artists.join(", ") : "";
-    const genres = Array.isArray(c.extracted_genres) ? c.extracted_genres.join(", ") : "";
-    const source = c.source_url ? `<a href="${esc(c.source_url)}" target="_blank" rel="noopener">Άνοιγμα πηγής</a>` : "Χωρίς σύνδεσμο πηγής";
-    return `
-      <article class="card">
-        <span class="pill">${esc(c.detection_type || "candidate")}</span>
-        <div class="title">${esc(c.extracted_title || "Χωρίς τίτλο")}</div>
-        <div class="meta">
-          <div><strong>Ημερομηνία:</strong> ${esc(formatDate(c.extracted_date))} · ${esc(formatTime(c.extracted_time))}</div>
-          <div><strong>Χώρος:</strong> ${esc(c.extracted_venue || "—")}</div>
-          <div><strong>Περιοχή:</strong> ${esc(c.extracted_city || c.extracted_region || "—")}</div>
-          <div><strong>Καλλιτέχνες:</strong> ${esc(artists || "—")}</div>
-          <div><strong>Είδος:</strong> ${esc(genres || "—")}</div>
-          <div><strong>Τιμή:</strong> ${esc(c.extracted_price || "—")}</div>
-          <div><strong>Τηλέφωνο:</strong> ${esc(c.extracted_phone || "—")}</div>
-          <div class="confidence">Βεβαιότητα: ${esc(c.confidence_score ?? "—")}%</div>
-          <div>${source}</div>
-        </div>
-        <div class="original">${esc(c.original_text || "Δεν υπάρχει αρχικό κείμενο.")}</div>
-        <div class="actions">
-          <button class="approve" onclick="approveCandidate('${c.id}')">Έγκριση & Δημοσίευση</button>
-          <button class="reject" onclick="rejectCandidate('${c.id}')">Απόρριψη</button>
-        </div>
-      </article>`;
-  }).join("");
-}
-
-async function approveCandidate(id) {
-  const c = (window.currentCandidates || []).find(x => x.id === id);
-  if (!c) return;
-  if (!confirm("Να εγκριθεί και να δημοσιευτεί αυτή η εκδήλωση;")) return;
-
-  const { data: inserted, error: insertError } = await db
-    .from("events")
-    .insert({
-      title: c.extracted_title || "Live εκδήλωση",
-      slug: uniqueSlug(c.extracted_title || "live"),
-      description: c.original_text || null,
-      event_date: c.extracted_date,
-      start_time: c.extracted_time,
-      region: c.extracted_region || null,
-      city: c.extracted_city || null,
-      address: c.extracted_venue || null,
-      price_text: c.extracted_price || null,
-      phone: c.extracted_phone || null,
-      status: "published",
-      created_via: "manual",
-      confidence_score: c.confidence_score ?? null,
-      last_verified_at: new Date().toISOString()
-    })
-    .select("id")
-    .single();
-
-  if (insertError) {
-    alert("Δεν δημοσιεύτηκε: " + insertError.message);
-    return;
-  }
-
-  const { error: updateError } = await db
-    .from("ingestion_candidates")
-    .update({review_status:"approved",possible_duplicate_event_id:inserted.id})
-    .eq("id",id);
-
-  if (updateError) {
-    alert("Δημοσιεύτηκε, αλλά το candidate δεν ενημερώθηκε: " + updateError.message);
-    return;
-  }
-
-  alert("Η εκδήλωση εγκρίθηκε και δημοσιεύτηκε!");
-  await loadCandidates();
-}
-
-async function rejectCandidate(id) {
-  if (!confirm("Να απορριφθεί αυτή η εκδήλωση;")) return;
-  const { error } = await db.from("ingestion_candidates").update({review_status:"rejected"}).eq("id",id);
-  if (error) return alert("Σφάλμα: " + error.message);
-  await loadCandidates();
-}
-
-async function getOrCreate(table, name) {
-  const clean = String(name || "").trim();
-  if (!clean) return null;
-
-  const { data: existing, error: findError } = await db
-    .from(table)
-    .select("id")
-    .ilike("name", clean)
-    .limit(1);
-
-  if (findError) throw findError;
-  if (existing && existing.length) return existing[0].id;
-
-  const { data: created, error: createError } = await db
-    .from(table)
-    .insert({name: clean, slug: uniqueSlug(clean)})
-    .select("id")
-    .single();
-
-  if (createError) throw createError;
-  return created.id;
-}
-
-async function getOrCreateVenue(name, city, region, address, phone) {
-  const clean = name.trim();
-
-  const { data: existing, error: findError } = await db
-    .from("venues")
-    .select("id")
-    .ilike("name", clean)
-    .limit(1);
-
-  if (findError) throw findError;
-  if (existing && existing.length) return existing[0].id;
-
-  const { data: created, error: createError } = await db
-    .from("venues")
-    .insert({
-      name: clean,
-      slug: uniqueSlug(clean),
-      city: city || null,
-      region: region || null,
-      address: address || null,
-      phone: phone || null
-    })
-    .select("id")
-    .single();
-
-  if (createError) throw createError;
-  return created.id;
-}
-
-document.getElementById("publishManualBtn").addEventListener("click", async () => {
-  const msg = document.getElementById("manualMsg");
-  msg.textContent = "";
-  msg.className = "";
-
-  const title = document.getElementById("fTitle").value.trim();
-  const event_date = document.getElementById("fDate").value;
-  const start_time = document.getElementById("fTime").value;
-  const venueName = document.getElementById("fVenue").value.trim();
-  const city = document.getElementById("fCity").value.trim();
-  const region = document.getElementById("fRegion").value;
-  const address = document.getElementById("fAddress").value.trim();
-  const artists = document.getElementById("fArtists").value.split(",").map(x=>x.trim()).filter(Boolean);
-  const genres = document.getElementById("fGenres").value.split(",").map(x=>x.trim()).filter(Boolean);
-  const price = document.getElementById("fPrice").value.trim();
-  const phone = document.getElementById("fPhone").value.trim();
-  const poster = document.getElementById("fPoster").value.trim();
-  const description = document.getElementById("fDescription").value.trim();
-
-  if (!title || !event_date || !start_time || !venueName || !city || !region) {
-    msg.textContent = "Συμπλήρωσε τα υποχρεωτικά πεδία: τίτλος, ημερομηνία, ώρα, χώρος, πόλη και περιοχή.";
-    msg.className = "error";
-    return;
-  }
-
-  if (!confirm("Να δημοσιευτεί τώρα αυτή η εκδήλωση στο Crete Live;")) return;
-
-  const btn = document.getElementById("publishManualBtn");
-  btn.disabled = true;
-  btn.textContent = "Δημοσίευση...";
-
-  try {
-    const venue_id = await getOrCreateVenue(venueName, city, region, address, phone);
-
-    const { data: event, error: eventError } = await db
-      .from("events")
-      .insert({
-        title,
-        slug: uniqueSlug(title),
-        description: description || null,
-        event_date,
-        start_time,
-        venue_id,
-        region,
-        city,
-        address: address || null,
-        price_text: price || null,
-        phone: phone || null,
-        poster_url: poster || null,
-        status: "published",
-        created_via: "manual",
-        confidence_score: 100,
-        last_verified_at: new Date().toISOString()
-      })
-      .select("id")
-      .single();
-
-    if (eventError) throw eventError;
-
-    for (const artistName of artists) {
-      const artist_id = await getOrCreate("artists", artistName);
-      const { error } = await db.from("event_artists").insert({event_id:event.id,artist_id});
-      if (error) throw error;
-    }
-
-    for (const genreName of genres) {
-      const genre_id = await getOrCreate("genres", genreName);
-      const { error } = await db.from("event_genres").insert({event_id:event.id,genre_id});
-      if (error) throw error;
-    }
-
-    msg.textContent = "Η εκδήλωση δημοσιεύτηκε επιτυχώς!";
-    msg.className = "ok";
-
-    ["fTitle","fDate","fTime","fVenue","fCity","fAddress","fArtists","fGenres","fPrice","fPhone","fPoster","fDescription"]
-      .forEach(id => document.getElementById(id).value = "");
-    document.getElementById("fRegion").value = "";
-  } catch (err) {
-    console.error(err);
-    msg.textContent = "Σφάλμα: " + (err.message || err);
-    msg.className = "error";
-  } finally {
-    btn.disabled = false;
-    btn.textContent = "Δημοσίευση εκδήλωσης";
-  }
-});
-
-async function loadPublished() {
-  const list = document.getElementById("publishedList");
-  list.innerHTML = '<div class="empty">Φόρτωση...</div>';
-  const { data, error } = await db.from("events")
-    .select("id,title,event_date,start_time,city,region,address,price_text,phone,description,poster_url,venue_id")
-    .eq("status","published")
-    .order("event_date", {ascending:true});
-  if (error) { list.innerHTML = '<div class="card error">Σφάλμα: ' + esc(error.message) + '</div>'; return; }
-  window.publishedEvents = data || [];
-  renderPublished();
-}
-
-function renderPublished() {
-  const q = document.getElementById("publishedSearch").value.trim().toLowerCase();
-  const data = (window.publishedEvents || []).filter(e => !q || [e.title,e.city,e.region,e.address].join(" ").toLowerCase().includes(q));
-  document.getElementById("publishedCount").textContent = data.length + " δημοσιευμένες εκδηλώσεις";
-  document.getElementById("publishedList").innerHTML = data.length ? data.map(e => `
+async function loadCandidates(){
+  $("candidates").innerHTML='<div class="empty">Φόρτωση...</div>';
+  const {data,error}=await db.from("ingestion_candidates").select("*").eq("review_status","pending").order("created_at",{ascending:false});
+  if(error){$("candidates").innerHTML='<div class="card error">'+esc(error.message)+'</div>';return;}
+  window.currentCandidates=data||[];
+  $("count").textContent=`${data.length} εκδηλώσεις περιμένουν έλεγχο`;
+  if(!data.length){$("candidates").innerHTML='<div class="card empty">Δεν υπάρχουν εκδηλώσεις προς έλεγχο.</div>';return;}
+  $("candidates").innerHTML=data.map(c=>`
     <article class="card">
+      <span class="pill">${esc(c.detection_type||"candidate")}</span>
+      <div class="title">${esc(c.extracted_title||"Χωρίς τίτλο")}</div>
+      <div class="meta">
+        <div><strong>Ημερομηνία:</strong> ${esc(formatDate(c.extracted_date))} · ${esc(formatTime(c.extracted_time))}</div>
+        <div><strong>Χώρος:</strong> ${esc(c.extracted_venue||"—")}</div>
+        <div><strong>Περιοχή:</strong> ${esc(c.extracted_city||c.extracted_region||"—")}</div>
+      </div>
+      <div class="actions">
+        <button class="approve" onclick="approveCandidate('${c.id}')">Έγκριση & Δημοσίευση</button>
+        <button class="reject" onclick="rejectCandidate('${c.id}')">Απόρριψη</button>
+      </div>
+    </article>`).join("");
+}
+
+async function approveCandidate(id){
+  const c=(window.currentCandidates||[]).find(x=>x.id===id); if(!c)return;
+  if(!confirm("Να εγκριθεί και να δημοσιευτεί;"))return;
+  try{
+    const venue_id = c.extracted_venue ? await getOrCreateVenue(c.extracted_venue,c.extracted_city,c.extracted_region,"",c.extracted_phone||"") : null;
+    const {data:event,error}=await db.from("events").insert({
+      title:c.extracted_title||"Live εκδήλωση",slug:uniqueSlug(c.extracted_title||"live"),description:c.original_text||null,
+      event_date:c.extracted_date,start_time:c.extracted_time,venue_id,region:c.extracted_region||null,city:c.extracted_city||null,
+      price_text:c.extracted_price||null,phone:c.extracted_phone||null,poster_url:c.image_url||null,status:"published",
+      created_via:"manual",confidence_score:c.confidence_score??null,last_verified_at:new Date().toISOString()
+    }).select("id").single();
+    if(error)throw error;
+    for(const name of (c.extracted_artists||[])){const artist_id=await getOrCreate("artists",name);const r=await db.from("event_artists").insert({event_id:event.id,artist_id});if(r.error)throw r.error;}
+    for(const name of (c.extracted_genres||[])){const genre_id=await getOrCreate("genres",name);const r=await db.from("event_genres").insert({event_id:event.id,genre_id});if(r.error)throw r.error;}
+    const r=await db.from("ingestion_candidates").update({review_status:"approved",possible_duplicate_event_id:event.id}).eq("id",id);
+    if(r.error)throw r.error;
+    alert("Η εκδήλωση εγκρίθηκε και δημοσιεύτηκε!"); await loadCandidates();
+  }catch(err){alert("Σφάλμα: "+(err.message||err));}
+}
+async function rejectCandidate(id){
+  if(!confirm("Να απορριφθεί αυτή η εκδήλωση;"))return;
+  const {error}=await db.from("ingestion_candidates").update({review_status:"rejected"}).eq("id",id);
+  if(error)return alert("Σφάλμα: "+error.message); await loadCandidates();
+}
+
+async function loadPublished(){
+  $("publishedList").innerHTML='<div class="empty">Φόρτωση...</div>';
+  const {data,error}=await db.from("events").select(`
+    *,
+    venue:venues(id,name,city,region,address,phone),
+    event_artists(artist:artists(id,name)),
+    event_genres(genre:genres(id,name))
+  `).eq("status","published").order("event_date",{ascending:true}).order("start_time",{ascending:true});
+  if(error){$("publishedList").innerHTML='<div class="card error">'+esc(error.message)+'</div>';return;}
+  window.publishedEvents=data||[]; renderPublished();
+}
+function renderPublished(){
+  const q=$("publishedSearch").value.trim().toLowerCase();
+  const data=(window.publishedEvents||[]).filter(e=>[e.title,e.city,e.region,e.venue?.name].join(" ").toLowerCase().includes(q));
+  $("publishedCount").textContent=`${data.length} δημοσιευμένες εκδηλώσεις`;
+  if(!data.length){$("publishedList").innerHTML='<div class="card empty">Δεν βρέθηκαν εκδηλώσεις.</div>';return;}
+  $("publishedList").innerHTML=data.map(e=>`
+    <article class="card">
+      <span class="pill published-pill">Δημοσιευμένη</span>
       <div class="title">${esc(e.title)}</div>
       <div class="meta">
         <div><strong>Ημερομηνία:</strong> ${esc(formatDate(e.event_date))} · ${esc(formatTime(e.start_time))}</div>
-        <div><strong>Περιοχή:</strong> ${esc(e.city || e.region || "—")}</div>
-        <div><strong>Διεύθυνση:</strong> ${esc(e.address || "—")}</div>
-        <div><strong>Τιμή:</strong> ${esc(e.price_text || "—")}</div>
+        <div><strong>Χώρος:</strong> ${esc(e.venue?.name||"—")}</div>
+        <div><strong>Περιοχή:</strong> ${esc(e.city||e.region||"—")}</div>
       </div>
       <div class="actions">
-        <button class="primary" onclick="editEvent('${e.id}')">Επεξεργασία</button>
-        <button class="reject" onclick="deleteEvent('${e.id}')">Διαγραφή</button>
+        <a class="edit" href="admin-edit.html?id=${encodeURIComponent(e.id)}">Επεξεργασία</a>
+        <button class="danger" onclick="deleteEvent('${e.id}')">Διαγραφή</button>
       </div>
-    </article>`).join("") : '<div class="card empty">Δεν βρέθηκαν εκδηλώσεις.</div>';
+    </article>`).join("");
+}
+$("publishedSearch").oninput=renderPublished;
+$("refreshPublished").onclick=loadPublished;
+
+async function deleteEvent(id){
+  const e=(window.publishedEvents||[]).find(x=>x.id===id);
+  if(!confirm(`Να διαγραφεί οριστικά η εκδήλωση "${e?.title||""}";`))return;
+  try{
+    let r=await db.from("event_artists").delete().eq("event_id",id); if(r.error)throw r.error;
+    r=await db.from("event_genres").delete().eq("event_id",id); if(r.error)throw r.error;
+    await db.from("ingestion_candidates").update({possible_duplicate_event_id:null}).eq("possible_duplicate_event_id",id);
+    r=await db.from("events").delete().eq("id",id); if(r.error)throw r.error;
+    alert("Η εκδήλωση διαγράφηκε."); await loadPublished();
+  }catch(err){alert("Δεν διαγράφηκε: "+(err.message||err));}
 }
 
-document.getElementById("publishedSearch").addEventListener("input", renderPublished);
-
-async function editEvent(id) {
-  const e = (window.publishedEvents || []).find(x => x.id === id);
-  if (!e) return;
-  const title = prompt("Τίτλος", e.title || ""); if (title === null) return;
-  const date = prompt("Ημερομηνία (YYYY-MM-DD)", e.event_date || ""); if (date === null) return;
-  const time = prompt("Ώρα (HH:MM)", (e.start_time || "").slice(0,5)); if (time === null) return;
-  const city = prompt("Πόλη", e.city || ""); if (city === null) return;
-  const price = prompt("Τιμή / είσοδος", e.price_text || ""); if (price === null) return;
-  const { error } = await db.from("events").update({
-    title:title.trim(), event_date:date.trim(), start_time:time.trim(), city:city.trim(),
-    price_text:price.trim() || null, last_verified_at:new Date().toISOString()
-  }).eq("id", id);
-  if (error) return alert("Σφάλμα: " + error.message);
-  alert("Οι αλλαγές αποθηκεύτηκαν!");
-  await loadPublished();
-}
-
-async function deleteEvent(id) {
-  const e = (window.publishedEvents || []).find(x => x.id === id);
-  if (!confirm(`Να διαγραφεί οριστικά η εκδήλωση «${e?.title || ""}»;`)) return;
-  await db.from("event_artists").delete().eq("event_id", id);
-  await db.from("event_genres").delete().eq("event_id", id);
-  await db.from("ingestion_candidates").update({possible_duplicate_event_id:null}).eq("possible_duplicate_event_id", id);
-  const { error } = await db.from("events").delete().eq("id", id);
-  if (error) return alert("Δεν διαγράφηκε: " + error.message);
-  alert("Η εκδήλωση διαγράφηκε.");
-  await loadPublished();
-}
+$("publishManualBtn").onclick=async()=>{
+  const msg=$("manualMsg");msg.textContent="";
+  const title=$("fTitle").value.trim(),event_date=$("fDate").value,start_time=$("fTime").value,venueName=$("fVenue").value.trim(),
+  city=$("fCity").value.trim(),region=$("fRegion").value,address=$("fAddress").value.trim(),
+  artists=splitCSV($("fArtists").value),genres=splitCSV($("fGenres").value),price=$("fPrice").value.trim(),
+  phone=$("fPhone").value.trim(),poster=$("fPoster").value.trim(),description=$("fDescription").value.trim();
+  if(!title||!event_date||!start_time||!venueName||!city||!region){msg.textContent="Συμπλήρωσε τα υποχρεωτικά πεδία.";msg.className="error";return;}
+  if(!confirm("Να δημοσιευτεί τώρα αυτή η εκδήλωση;"))return;
+  try{
+    const venue_id=await getOrCreateVenue(venueName,city,region,address,phone);
+    const {data:event,error}=await db.from("events").insert({
+      title,slug:uniqueSlug(title),description:description||null,event_date,start_time,venue_id,region,city,address:address||null,
+      price_text:price||null,phone:phone||null,poster_url:poster||null,status:"published",created_via:"manual",confidence_score:100,last_verified_at:new Date().toISOString()
+    }).select("id").single();
+    if(error)throw error;
+    for(const name of artists){const artist_id=await getOrCreate("artists",name);const r=await db.from("event_artists").insert({event_id:event.id,artist_id});if(r.error)throw r.error;}
+    for(const name of genres){const genre_id=await getOrCreate("genres",name);const r=await db.from("event_genres").insert({event_id:event.id,genre_id});if(r.error)throw r.error;}
+    msg.textContent="Η εκδήλωση δημοσιεύτηκε επιτυχώς!";msg.className="ok";
+  }catch(err){msg.textContent="Σφάλμα: "+(err.message||err);msg.className="error";}
+};
 
 showCorrectView();
 </script>

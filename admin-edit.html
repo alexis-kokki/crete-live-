@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="el">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Επεξεργασία εκδήλωσης — Crete Live</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#f6f1e9;color:#101828}
+    .wrap{max-width:780px;margin:auto;padding:18px}
+    .top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+    .brand{font-size:24px;font-weight:850}
+    .sub{color:#667085;font-size:14px}
+    .card{background:#fff;border:1px solid #e7e1d8;border-radius:20px;padding:18px;box-shadow:0 8px 24px rgba(16,24,40,.05)}
+    input,textarea,select{width:100%;padding:13px 14px;margin-top:7px;border:1px solid #d0d5dd;border-radius:12px;font-size:16px;background:#fff}
+    textarea{min-height:100px;resize:vertical}
+    label{display:block;font-size:13px;font-weight:800;color:#475467;margin-top:12px}
+    button,.btn{border:0;border-radius:12px;padding:12px 16px;font-weight:800;font-size:15px;cursor:pointer;text-decoration:none;display:inline-block}
+    .save{background:#175cd3;color:#fff;width:100%;margin-top:18px}
+    .back{background:#eef2f6;color:#344054}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .error{color:#b42318;margin-top:12px}
+    .ok{color:#157347;margin-top:12px;font-weight:700}
+    .hidden{display:none}
+    .empty{padding:40px 20px;text-align:center;color:#667085}
+    @media (max-width:620px){.grid2{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<main class="wrap">
+  <div class="top">
+    <div>
+      <div class="brand">Επεξεργασία εκδήλωσης</div>
+      <div class="sub">Crete Live Admin</div>
+    </div>
+    <a class="btn back" href="admin.html">← Επιστροφή</a>
+  </div>
+
+  <div id="loading" class="card empty">Φόρτωση εκδήλωσης...</div>
+
+  <section id="editor" class="card hidden">
+    <input id="eId" type="hidden">
+    <label>Τίτλος *</label><input id="eTitle">
+
+    <div class="grid2">
+      <div><label>Ημερομηνία *</label><input id="eDate" type="date"></div>
+      <div><label>Ώρα *</label><input id="eTime" type="time"></div>
+    </div>
+
+    <label>Χώρος / μαγαζί *</label><input id="eVenue">
+
+    <div class="grid2">
+      <div><label>Πόλη *</label><input id="eCity"></div>
+      <div>
+        <label>Νομός / περιοχή *</label>
+        <select id="eRegion">
+          <option value="">Επιλογή</option>
+          <option>Ηράκλειο</option><option>Χανιά</option><option>Ρέθυμνο</option><option>Λασίθι</option>
+        </select>
+      </div>
+    </div>
+
+    <label>Διεύθυνση</label><input id="eAddress">
+    <label>Καλλιτέχνες</label><input id="eArtists">
+    <label>Είδη μουσικής</label><input id="eGenres">
+
+    <div class="grid2">
+      <div><label>Τιμή / είσοδος</label><input id="ePrice"></div>
+      <div><label>Τηλέφωνο</label><input id="ePhone"></div>
+    </div>
+
+    <label>Poster / εικόνα URL</label><input id="ePoster">
+    <label>Περιγραφή</label><textarea id="eDescription"></textarea>
+
+    <button id="saveBtn" class="save">Αποθήκευση αλλαγών</button>
+    <div id="msg"></div>
+  </section>
+</main>
+
+<script>
+const db = window.supabase.createClient("https://skstztwseipuqpqtlzfa.supabase.co", "sb_publishable_lnNg0aoYe4zsBKkV9XactA_IzcWBdiJ");
+const $ = id => document.getElementById(id);
+function splitCSV(v){return String(v||"").split(",").map(x=>x.trim()).filter(Boolean);}
+function slugify(text){
+  const greek={'α':'a','β':'v','γ':'g','δ':'d','ε':'e','ζ':'z','η':'i','θ':'th','ι':'i','κ':'k','λ':'l','μ':'m','ν':'n','ξ':'x','ο':'o','π':'p','ρ':'r','σ':'s','ς':'s','τ':'t','υ':'y','φ':'f','χ':'ch','ψ':'ps','ω':'o'};
+  return String(text||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .split("").map(ch=>greek[ch]||ch).join("").replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,55)||"item";
+}
+function uniqueSlug(text){return slugify(text)+"-"+Date.now().toString(36);}
+
+async function getOrCreate(table,name){
+  const clean=String(name||"").trim(); if(!clean)return null;
+  const {data:existing,error}=await db.from(table).select("id").ilike("name",clean).limit(1);
+  if(error)throw error;
+  if(existing?.length)return existing[0].id;
+  const {data:created,error:createError}=await db.from(table).insert({name:clean,slug:uniqueSlug(clean)}).select("id").single();
+  if(createError)throw createError; return created.id;
+}
+async function getOrCreateVenue(name,city,region,address,phone){
+  const clean=String(name||"").trim();
+  const {data:existing,error}=await db.from("venues").select("id").ilike("name",clean).limit(1);
+  if(error)throw error;
+  if(existing?.length)return existing[0].id;
+  const {data:created,error:createError}=await db.from("venues").insert({
+    name:clean,slug:uniqueSlug(clean),city:city||null,region:region||null,address:address||null,phone:phone||null
+  }).select("id").single();
+  if(createError)throw createError; return created.id;
+}
+
+async function init(){
+  const {data:{session}}=await db.auth.getSession();
+  if(!session){
+    location.href="admin.html";
+    return;
+  }
+  const id=new URLSearchParams(location.search).get("id");
+  if(!id){
+    $("loading").textContent="Δεν βρέθηκε ID εκδήλωσης.";
+    return;
+  }
+  const {data:e,error}=await db.from("events").select(`
+    *,
+    venue:venues(id,name,address),
+    event_artists(artist:artists(id,name)),
+    event_genres(genre:genres(id,name))
+  `).eq("id",id).single();
+
+  if(error){
+    $("loading").textContent="Σφάλμα: "+error.message;
+    return;
+  }
+
+  $("eId").value=e.id;
+  $("eTitle").value=e.title||"";
+  $("eDate").value=e.event_date||"";
+  $("eTime").value=(e.start_time||"").slice(0,5);
+  $("eVenue").value=e.venue?.name||"";
+  $("eCity").value=e.city||"";
+  $("eRegion").value=e.region||"";
+  $("eAddress").value=e.address||e.venue?.address||"";
+  $("eArtists").value=(e.event_artists||[]).map(x=>x.artist?.name).filter(Boolean).join(", ");
+  $("eGenres").value=(e.event_genres||[]).map(x=>x.genre?.name).filter(Boolean).join(", ");
+  $("ePrice").value=e.price_text||"";
+  $("ePhone").value=e.phone||"";
+  $("ePoster").value=e.poster_url||"";
+  $("eDescription").value=e.description||"";
+
+  $("loading").classList.add("hidden");
+  $("editor").classList.remove("hidden");
+}
+
+$("saveBtn").onclick=async()=>{
+  const msg=$("msg"); msg.textContent=""; msg.className="";
+  const id=$("eId").value, title=$("eTitle").value.trim(), event_date=$("eDate").value, start_time=$("eTime").value,
+        venueName=$("eVenue").value.trim(), city=$("eCity").value.trim(), region=$("eRegion").value,
+        address=$("eAddress").value.trim(), artists=splitCSV($("eArtists").value), genres=splitCSV($("eGenres").value),
+        price=$("ePrice").value.trim(), phone=$("ePhone").value.trim(), poster=$("ePoster").value.trim(),
+        description=$("eDescription").value.trim();
+
+  if(!title||!event_date||!start_time||!venueName||!city||!region){
+    msg.textContent="Συμπλήρωσε τίτλο, ημερομηνία, ώρα, χώρο, πόλη και περιοχή.";
+    msg.className="error"; return;
+  }
+
+  const btn=$("saveBtn"); btn.disabled=true; btn.textContent="Αποθήκευση...";
+  try{
+    const venue_id=await getOrCreateVenue(venueName,city,region,address,phone);
+
+    const {error:updateError}=await db.from("events").update({
+      title,event_date,start_time,venue_id,region,city,address:address||null,price_text:price||null,
+      phone:phone||null,poster_url:poster||null,description:description||null,last_verified_at:new Date().toISOString()
+    }).eq("id",id);
+    if(updateError)throw updateError;
+
+    let r=await db.from("event_artists").delete().eq("event_id",id); if(r.error)throw r.error;
+    r=await db.from("event_genres").delete().eq("event_id",id); if(r.error)throw r.error;
+
+    for(const name of artists){
+      const artist_id=await getOrCreate("artists",name);
+      const x=await db.from("event_artists").insert({event_id:id,artist_id});
+      if(x.error)throw x.error;
+    }
+    for(const name of genres){
+      const genre_id=await getOrCreate("genres",name);
+      const x=await db.from("event_genres").insert({event_id:id,genre_id});
+      if(x.error)throw x.error;
+    }
+
+    msg.textContent="Οι αλλαγές αποθηκεύτηκαν επιτυχώς!";
+    msg.className="ok";
+  }catch(err){
+    msg.textContent="Σφάλμα: "+(err.message||err);
+    msg.className="error";
+  }finally{
+    btn.disabled=false;
+    btn.textContent="Αποθήκευση αλλαγών";
+  }
+};
+
+init();
+</script>
+</body>
+</html>
