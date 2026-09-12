@@ -169,5 +169,74 @@
   </nav>
 
   <script src="app.js"></script>
+  <script>
+    (() => {
+      const input = document.getElementById("searchInput");
+      const suggestions = document.getElementById("searchSuggestions");
+      if (!input || !suggestions) return;
+
+      let activeIndex = -1;
+
+      function getItems() {
+        return Array.from(suggestions.querySelectorAll(".search-suggestion"));
+      }
+
+      function clearActive() {
+        getItems().forEach(item => {
+          item.style.background = "";
+          item.removeAttribute("aria-selected");
+        });
+        activeIndex = -1;
+      }
+
+      function setActive(index) {
+        const items = getItems();
+        if (!items.length) return;
+
+        items.forEach(item => {
+          item.style.background = "";
+          item.removeAttribute("aria-selected");
+        });
+
+        activeIndex = (index + items.length) % items.length;
+        const activeItem = items[activeIndex];
+        activeItem.style.background = "#fff8ee";
+        activeItem.setAttribute("aria-selected", "true");
+        activeItem.scrollIntoView({ block: "nearest" });
+      }
+
+      input.addEventListener("input", clearActive);
+
+      input.addEventListener("keydown", event => {
+        const items = getItems();
+
+        if (event.key === "ArrowDown" && items.length) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          setActive(activeIndex + 1);
+          return;
+        }
+
+        if (event.key === "ArrowUp" && items.length) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          setActive(activeIndex <= 0 ? items.length - 1 : activeIndex - 1);
+          return;
+        }
+
+        if (event.key === "Enter" && activeIndex >= 0 && items[activeIndex]) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          items[activeIndex].click();
+          activeIndex = -1;
+          return;
+        }
+
+        if (event.key === "Escape") {
+          activeIndex = -1;
+        }
+      }, true);
+    })();
+  </script>
 </body>
 </html>
