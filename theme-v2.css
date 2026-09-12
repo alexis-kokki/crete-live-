@@ -2,8 +2,8 @@
 :root{--brand-orange:#ff8a00;--brand-orange-2:#f59e0b;--brand-navy:#091321;--brand-navy-2:#111c2d;--brand-cream:#f7f4ef}
 
 /* Desktop hero: preserve the fortress, woman and musicians */
-.hero{min-height:665px;background-image:linear-gradient(90deg,rgba(3,10,20,.96) 0%,rgba(3,10,20,.78) 25%,rgba(3,10,20,.42) 43%,rgba(3,10,20,.10) 66%,rgba(3,10,20,.18) 100%),url('hero.png')!important;background-size:cover!important;background-repeat:no-repeat!important;background-position:center 44%!important}
-.hero-shade{background:radial-gradient(ellipse at 39% 37%,rgba(255,255,255,.055) 0%,rgba(255,255,255,0) 26%),linear-gradient(180deg,rgba(2,8,18,.02) 40%,rgba(2,8,18,.28) 100%)!important}
+.hero{min-height:665px;background-image:linear-gradient(90deg,rgba(3,10,20,.96) 0%,rgba(3,10,20,.74) 25%,rgba(3,10,20,.36) 43%,rgba(3,10,20,.08) 66%,rgba(3,10,20,.16) 100%),url('hero.png')!important;background-size:cover!important;background-repeat:no-repeat!important;background-position:center 44%!important}
+.hero-shade{background:radial-gradient(ellipse at 39% 37%,rgba(255,255,255,.085) 0%,rgba(255,255,255,0) 28%),linear-gradient(180deg,rgba(2,8,18,.02) 40%,rgba(2,8,18,.26) 100%)!important}
 .hero-content{max-width:1320px;margin:0 auto;padding-left:42px!important;padding-right:42px!important}
 .hero-copy{max-width:620px!important}.hero .hero-copy p{max-width:590px!important}
 .hero h1{text-shadow:0 5px 24px rgba(0,0,0,.42)!important}
