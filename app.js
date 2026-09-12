@@ -8,6 +8,11 @@ const eventsContainer = document.getElementById("eventsContainer");
 const emptyState = document.getElementById("emptyState");
 const searchInput = document.getElementById("searchInput");
 const modal = document.getElementById("eventModal");
+const searchCard = document.querySelector(".search-card");
+const searchSuggestions = document.createElement("div");
+searchSuggestions.id = "searchSuggestions";
+searchSuggestions.className = "search-suggestions hidden";
+searchCard.appendChild(searchSuggestions);
 
 function localDateISO(offsetDays = 0) {
   const d = new Date();
@@ -43,6 +48,14 @@ function formatDate(dateStr) {
 function formatTime(timeStr) {
   if (!timeStr) return "";
   return timeStr.slice(0, 5);
+}
+
+function normalizeText(value = "") {
+  return String(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
 }
 
 function normalizeEvent(row) {
@@ -140,13 +153,13 @@ async function loadEvents() {
 }
 
 function renderEvents() {
-  const term = state.search.trim().toLowerCase();
+  const term = normalizeText(state.search);
 
   const filtered = events.filter(e => {
     const dateOk = matchesDateFilter(e);
     const regionOk = state.region === "all" || e.region === state.region;
     const genreOk = state.genre === "all" || e.genres.includes(state.genre);
-    const searchText = `${e.title} ${e.venue} ${e.region} ${e.city} ${e.artists.join(" ")} ${e.genres.join(" ")}`.toLowerCase();
+    const searchText = normalizeText(`${e.title} ${e.venue} ${e.region} ${e.city} ${e.artists.join(" ")} ${e.genres.join(" ")}`);
     const searchOk = !term || searchText.includes(term);
     return dateOk && regionOk && genreOk && searchOk;
   });
@@ -182,6 +195,99 @@ function renderEvents() {
     : "Δεν βρέθηκαν live";
 }
 
+function buildSearchSuggestions(query) {
+  const term = normalizeText(query);
+  if (!term) return [];
+
+  const items = [];
+  const seen = new Set();
+
+  const add = (type, label) => {
+    if (!label) return;
+    const normalizedLabel = normalizeText(label);
+    if (!normalizedLabel.includes(term)) return;
+
+    const key = `${type}|${normalizedLabel}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+
+    items.push({
+      type,
+      label,
+      startsWith: normalizedLabel.startsWith(term)
+    });
+  };
+
+  events.forEach(e => {
+    add("LIVE", e.title);
+    add("ΧΩΡΟΣ", e.venue);
+    add("ΠΕΡΙΟΧΗ", e.region);
+    add("ΠΕΡΙΟΧΗ", e.city);
+    e.artists.forEach(artist => add("ΚΑΛΛΙΤΕΧΝΗΣ", artist));
+    e.genres.forEach(genre => add("ΕΙΔΟΣ", genre));
+  });
+
+  return items
+    .sort((a, b) => Number(b.startsWith) - Number(a.startsWith) || a.label.localeCompare(b.label, "el"))
+    .slice(0, 8);
+}
+
+function hideSearchSuggestions() {
+  searchSuggestions.classList.add("hidden");
+  searchSuggestions.innerHTML = "";
+}
+
+function selectSearchSuggestion(item) {
+  searchInput.value = item.label;
+  state.search = item.label;
+  hideSearchSuggestions();
+  renderEvents();
+  scrollToResults();
+}
+
+function renderSearchSuggestions() {
+  const items = buildSearchSuggestions(searchInput.value);
+
+  if (!items.length) {
+    hideSearchSuggestions();
+    return;
+  }
+
+  searchSuggestions.innerHTML = "";
+
+  items.forEach(item => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "search-suggestion";
+
+    const type = document.createElement("span");
+    type.className = `search-suggestion-type type-${item.type.toLowerCase()}`;
+    type.textContent = item.type;
+
+    const label = document.createElement("span");
+    label.className = "search-suggestion-label";
+    label.textContent = item.label;
+
+    button.append(type, label);
+    button.addEventListener("click", () => selectSearchSuggestion(item));
+    searchSuggestions.appendChild(button);
+  });
+
+  searchSuggestions.classList.remove("hidden");
+}
+
+function scrollToResults() {
+  const resultsSection = document.getElementById("resultsTitle")?.closest("section");
+  if (!resultsSection) return;
+
+  requestAnimationFrame(() => {
+    resultsSection.scrollIntoView({
+      behavior: "smooth",
+      block: "start"
+    });
+  });
+}
+
 function setupChips(containerId, key, dataAttr) {
   document.querySelectorAll(`#${containerId} .chip`).forEach(chip => {
     chip.addEventListener("click", () => {
@@ -199,17 +305,9 @@ setupChips("genreChips", "genre", "genre");
 
 function runSearchAndScroll() {
   state.search = searchInput.value;
+  hideSearchSuggestions();
   renderEvents();
-
-  const resultsSection = document.getElementById("resultsTitle")?.closest("section");
-  if (!resultsSection) return;
-
-  requestAnimationFrame(() => {
-    resultsSection.scrollIntoView({
-      behavior: "smooth",
-      block: "start"
-    });
-  });
+  scrollToResults();
 }
 
 document.getElementById("searchBtn").addEventListener("click", runSearchAndScroll);
@@ -219,11 +317,29 @@ searchInput.addEventListener("keydown", (event) => {
     event.preventDefault();
     runSearchAndScroll();
   }
+
+  if (event.key === "Escape") {
+    hideSearchSuggestions();
+  }
 });
 
 searchInput.addEventListener("input", () => {
-  state.search = searchInput.value;
-  renderEvents();
+  if (!searchInput.value.trim()) {
+    state.search = "";
+    renderEvents();
+    hideSearchSuggestions();
+    return;
+  }
+
+  renderSearchSuggestions();
+});
+
+searchInput.addEventListener("focus", () => {
+  if (searchInput.value.trim()) renderSearchSuggestions();
+});
+
+document.addEventListener("click", event => {
+  if (!searchCard.contains(event.target)) hideSearchSuggestions();
 });
 
 document.getElementById("clearFilters").addEventListener("click", () => {
@@ -232,6 +348,7 @@ document.getElementById("clearFilters").addEventListener("click", () => {
   state.genre = "all";
   state.search = "";
   searchInput.value = "";
+  hideSearchSuggestions();
 
   ["dateChips", "regionChips", "genreChips"].forEach(id => {
     document.querySelectorAll(`#${id} .chip`).forEach((c, i) => c.classList.toggle("active", i === 0));
