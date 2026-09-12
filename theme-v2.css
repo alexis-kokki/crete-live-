@@ -2,12 +2,13 @@
 :root{--brand-orange:#ff8a00;--brand-orange-2:#f59e0b;--brand-navy:#091321;--brand-navy-2:#111c2d;--brand-cream:#f7f4ef}
 
 /* Desktop hero: preserve the fortress, woman and musicians */
-.hero{min-height:665px;background-image:linear-gradient(90deg,rgba(3,10,20,.97) 0%,rgba(3,10,20,.88) 28%,rgba(3,10,20,.54) 48%,rgba(3,10,20,.14) 70%,rgba(3,10,20,.22) 100%),url('hero.png')!important;background-size:cover!important;background-repeat:no-repeat!important;background-position:center 48%!important}
-.hero-shade{background:linear-gradient(180deg,rgba(2,8,18,.05) 42%,rgba(2,8,18,.32) 100%)!important}
+.hero{min-height:665px;background-image:linear-gradient(90deg,rgba(3,10,20,.96) 0%,rgba(3,10,20,.78) 25%,rgba(3,10,20,.42) 43%,rgba(3,10,20,.10) 66%,rgba(3,10,20,.18) 100%),url('hero.png')!important;background-size:cover!important;background-repeat:no-repeat!important;background-position:center 44%!important}
+.hero-shade{background:radial-gradient(ellipse at 39% 37%,rgba(255,255,255,.055) 0%,rgba(255,255,255,0) 26%),linear-gradient(180deg,rgba(2,8,18,.02) 40%,rgba(2,8,18,.28) 100%)!important}
 .hero-content{max-width:1320px;margin:0 auto;padding-left:42px!important;padding-right:42px!important}
 .hero-copy{max-width:620px!important}.hero .hero-copy p{max-width:590px!important}
-.search-card{max-width:650px!important;border-radius:18px!important;padding:12px 13px 10px!important;margin-top:26px!important;box-shadow:0 20px 55px rgba(0,0,0,.30)!important}
-.hero-benefits{max-width:650px!important;gap:16px!important}
+.hero h1{text-shadow:0 5px 24px rgba(0,0,0,.42)!important}
+.search-card{max-width:610px!important;border-radius:18px!important;padding:12px 13px 10px!important;margin-top:26px!important;box-shadow:0 20px 55px rgba(0,0,0,.30)!important}
+.hero-benefits{max-width:610px!important;gap:14px!important}
 
 /* Consistent interactions */
 .desktop-nav a,.header-cta,.search-row button,.quick-links a,.chip,.text-btn,.details-btn,.secondary-btn,.primary-btn,.primary-link,.secondary-link,.nav-item,.calendar-arrow,.today-btn{transition:color .18s ease,background-color .18s ease,border-color .18s ease,box-shadow .18s ease,transform .18s ease,opacity .18s ease}
