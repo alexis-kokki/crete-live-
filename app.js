@@ -201,9 +201,14 @@ function runSearchAndScroll() {
   state.search = searchInput.value;
   renderEvents();
 
-  document.getElementById("resultsTitle")?.scrollIntoView({
-    behavior: "smooth",
-    block: "start"
+  const resultsSection = document.getElementById("resultsTitle")?.closest("section");
+  if (!resultsSection) return;
+
+  requestAnimationFrame(() => {
+    resultsSection.scrollIntoView({
+      behavior: "smooth",
+      block: "start"
+    });
   });
 }
 
@@ -220,6 +225,7 @@ searchInput.addEventListener("input", () => {
   state.search = searchInput.value;
   renderEvents();
 });
+
 document.getElementById("clearFilters").addEventListener("click", () => {
   state.date = "all";
   state.region = "all";
