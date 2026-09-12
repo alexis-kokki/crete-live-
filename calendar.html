@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0b1220" />
+  <title>Ημερολόγιο Live — Crete Live</title>
+  <meta name="description" content="Ημερολόγιο live μουσικής στην Κρήτη — παλιά και επερχόμενα live ανά ημέρα." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=5" />
+</head>
+<body class="calendar-page">
+  <header class="topbar">
+    <a class="brand" href="index.html"><div class="brand-mark">♪</div><div><div class="brand-name">Crete Live</div><div class="brand-sub">Η Κρήτη παίζει απόψε</div></div></a>
+    <a class="calendar-home-link" href="index.html">Αρχική</a>
+  </header>
+
+  <main>
+    <section class="calendar-hero">
+      <span class="eyebrow">Crete Live</span>
+      <h1>Ημερολόγιο Live</h1>
+      <p>Δες τι παίζει — και τι έπαιξε — σε όλη την Κρήτη.</p>
+    </section>
+
+    <section class="calendar-shell">
+      <div class="calendar-toolbar">
+        <button class="calendar-arrow" id="prevMonth" aria-label="Προηγούμενος μήνας">‹</button>
+        <div class="calendar-month-wrap"><span class="kicker">Ημερολόγιο</span><h2 id="calendarMonth"></h2></div>
+        <button class="calendar-arrow" id="nextMonth" aria-label="Επόμενος μήνας">›</button>
+      </div>
+      <button class="today-btn" id="todayBtn">Σήμερα</button>
+
+      <div class="calendar-weekdays"><span>ΔΕ</span><span>ΤΡ</span><span>ΤΕ</span><span>ΠΕ</span><span>ΠΑ</span><span>ΣΑ</span><span>ΚΥ</span></div>
+      <div class="calendar-grid" id="calendarGrid"></div>
+    </section>
+
+    <section class="section calendar-results">
+      <div class="section-head"><div><span class="kicker" id="selectedStatus">Επιλεγμένη ημέρα</span><h2 id="selectedDateTitle">Live</h2></div></div>
+      <div class="events" id="calendarEvents"></div>
+      <div class="empty hidden" id="calendarEmpty"><div class="empty-icon">♪</div><h3>Δεν υπάρχουν live</h3><p>Δεν έχουμε καταχωρημένο live για αυτή την ημέρα.</p></div>
+    </section>
+  </main>
+
+  <nav class="bottom-nav">
+    <a class="nav-item" href="index.html"><span>⌂</span><small>Αρχική</small></a>
+    <a class="nav-item" href="index.html#searchInput"><span>⌕</span><small>Αναζήτηση</small></a>
+    <a class="nav-item active" href="calendar.html"><span>▦</span><small>Ημερολόγιο</small></a>
+    <button class="nav-item"><span>♡</span><small>Αγαπημένα</small></button>
+  </nav>
+
+  <script src="calendar.js?v=1"></script>
+</body>
+</html>
