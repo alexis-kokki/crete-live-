@@ -194,20 +194,89 @@ async function loadCandidates(){
   window.currentCandidates=data||[];
   $("count").textContent=`${data.length} εκδηλώσεις περιμένουν έλεγχο`;
   if(!data.length){$("candidates").innerHTML='<div class="card empty">Δεν υπάρχουν εκδηλώσεις προς έλεγχο.</div>';return;}
-  $("candidates").innerHTML=data.map(c=>`
-    <article class="card">
-      <span class="pill">${esc(c.detection_type||"candidate")}</span>
-      <div class="title">${esc(c.extracted_title||"Χωρίς τίτλο")}</div>
-      <div class="meta">
-        <div><strong>Ημερομηνία:</strong> ${esc(formatDate(c.extracted_date))} · ${esc(formatTime(c.extracted_time))}</div>
-        <div><strong>Χώρος:</strong> ${esc(c.extracted_venue||"—")}</div>
-        <div><strong>Περιοχή:</strong> ${esc(c.extracted_city||c.extracted_region||"—")}</div>
+ $("candidates").innerHTML=data.map(c=>`
+  <article class="card">
+    ${c.image_url ? `
+      <img
+        src="${esc(c.image_url)}"
+        alt="${esc(c.extracted_title || "Αφίσα εκδήλωσης")}"
+        style="width:100%;max-height:420px;object-fit:cover;border-radius:14px;margin-bottom:14px"
+        loading="lazy"
+      >
+    ` : ""}
+
+    <span class="pill">${esc(c.detection_type||"candidate")}</span>
+
+    <div class="title">${esc(c.extracted_title||"Χωρίς τίτλο")}</div>
+
+    <div class="meta">
+      <div>
+        <strong>Ημερομηνία:</strong>
+        ${esc(formatDate(c.extracted_date))} · ${esc(formatTime(c.extracted_time))}
       </div>
-      <div class="actions">
-        <button class="approve" onclick="approveCandidate('${c.id}')">Έγκριση & Δημοσίευση</button>
-        <button class="reject" onclick="rejectCandidate('${c.id}')">Απόρριψη</button>
+
+      <div>
+        <strong>Χώρος:</strong>
+        ${esc(c.extracted_venue||"—")}
       </div>
-    </article>`).join("");
+
+      <div>
+        <strong>Περιοχή:</strong>
+        ${esc(c.extracted_city||c.extracted_region||"—")}
+      </div>
+
+      ${c.extracted_artists?.length ? `
+        <div>
+          <strong>Καλλιτέχνες:</strong>
+          ${esc(c.extracted_artists.join(", "))}
+        </div>
+      ` : ""}
+
+      ${c.extracted_price ? `
+        <div>
+          <strong>Τιμή:</strong>
+          ${esc(c.extracted_price)}
+        </div>
+      ` : ""}
+
+      ${c.confidence_score != null ? `
+        <div>
+          <strong>Confidence:</strong>
+          ${esc(c.confidence_score)}%
+        </div>
+      ` : ""}
+    </div>
+
+    ${c.original_text ? `
+      <div class="original">
+        <strong>Περιγραφή πηγής:</strong><br>
+        ${esc(c.original_text)}
+      </div>
+    ` : ""}
+
+    ${c.source_url ? `
+      <div style="margin-top:12px">
+        <a
+          href="${esc(c.source_url)}"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Άνοιγμα αρχικής πηγής ↗
+        </a>
+      </div>
+    ` : ""}
+
+    <div class="actions">
+      <button class="approve" onclick="approveCandidate('${c.id}')">
+        Έγκριση & Δημοσίευση
+      </button>
+
+      <button class="reject" onclick="rejectCandidate('${c.id}')">
+        Απόρριψη
+      </button>
+    </div>
+  </article>
+`).join("");
 }
 
 async function approveCandidate(id){
