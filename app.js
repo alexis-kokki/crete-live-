@@ -197,16 +197,29 @@ setupChips("dateChips", "date", "date");
 setupChips("regionChips", "region", "region");
 setupChips("genreChips", "genre", "genre");
 
-document.getElementById("searchBtn").addEventListener("click", () => {
+function runSearchAndScroll() {
   state.search = searchInput.value;
   renderEvents();
+
+  document.getElementById("resultsTitle")?.scrollIntoView({
+    behavior: "smooth",
+    block: "start"
+  });
+}
+
+document.getElementById("searchBtn").addEventListener("click", runSearchAndScroll);
+
+searchInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    runSearchAndScroll();
+  }
 });
 
 searchInput.addEventListener("input", () => {
   state.search = searchInput.value;
   renderEvents();
 });
-
 document.getElementById("clearFilters").addEventListener("click", () => {
   state.date = "all";
   state.region = "all";
