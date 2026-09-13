@@ -288,6 +288,7 @@ function renderCandidates(){
       ${c.original_text?`<div class="original"><strong>Περιγραφή πηγής:</strong><br>${esc(c.original_text)}</div>`:""}
       ${c.source_url?`<div style="margin-top:12px"><a href="${esc(c.source_url)}" target="_blank" rel="noopener noreferrer">Άνοιγμα αρχικής πηγής ↗</a></div>`:""}
       <div class="actions">
+        <a class="edit" href="admin-candidate-edit.html?id=${encodeURIComponent(c.id)}">Επεξεργασία</a>
         <button class="approve" onclick="approveCandidate('${c.id}')">Έγκριση & Δημοσίευση</button>
         <button class="reject" onclick="rejectCandidate('${c.id}')">Απόρριψη</button>
       </div>
