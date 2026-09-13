@@ -75,7 +75,20 @@
     #candidates.layout-list .meta>div:nth-child(n+4){display:none}
     #candidates.layout-list .actions{margin:0;justify-content:flex-end}
     #candidates.layout-list .actions button,#candidates.layout-list .actions .edit{padding:9px 10px;font-size:12px}
-    @media (max-width:900px){#candidates.layout-list .candidate-card{grid-template-columns:1fr}.layout-label{display:none}}
+    .published-layout-switcher{display:flex;gap:6px;align-items:center;margin:-2px 0 14px}
+    .published-layout-btn{background:#eee8df;color:#344054;padding:9px 12px;font-size:13px}
+    .published-layout-btn.active{background:#101828;color:#fff}
+    #publishedList.layout-compact{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+    #publishedList.layout-compact .card{margin:0;padding:14px}
+    #publishedList.layout-compact .title{font-size:18px}
+    #publishedList.layout-compact .actions button,#publishedList.layout-compact .actions .edit{padding:10px 12px;font-size:13px}
+    #publishedList.layout-list .card{padding:12px 14px;margin-bottom:8px;display:grid;grid-template-columns:minmax(260px,1.5fr) minmax(250px,1fr) auto;gap:14px;align-items:center}
+    #publishedList.layout-list .card>.pill{display:none}
+    #publishedList.layout-list .title{font-size:16px;margin:0}
+    #publishedList.layout-list .meta{font-size:13px;margin:0}
+    #publishedList.layout-list .actions{margin:0;justify-content:flex-end}
+    #publishedList.layout-list .actions button,#publishedList.layout-list .actions .edit{padding:9px 10px;font-size:12px}
+    @media (max-width:900px){#candidates.layout-list .candidate-card,#publishedList.layout-list .card{grid-template-columns:1fr}.layout-label{display:none}}
     @media (max-width:760px){.pending-tools{grid-template-columns:1fr 1fr}.pending-tools input{grid-column:1/-1}}
     @media (max-width:520px){#candidates.layout-compact{grid-template-columns:1fr}.layout-switcher{overflow:auto}.layout-btn{white-space:nowrap}}
     a{color:#b45309}
@@ -145,6 +158,12 @@
         <input id="publishedSearch" placeholder="Αναζήτηση τίτλου, πόλης ή χώρου">
         <button id="refreshPublished" class="ghost">Ανανέωση</button>
       </div>
+      <div class="published-layout-switcher" aria-label="Διάταξη δημοσιευμένων">
+        <span class="layout-label">Διάταξη:</span>
+        <button class="published-layout-btn" data-layout="large" type="button">▣ Μεγάλες</button>
+        <button class="published-layout-btn" data-layout="compact" type="button">▦ Μικρές</button>
+        <button class="published-layout-btn" data-layout="list" type="button">☷ Λίστα</button>
+      </div>
       <div id="publishedCount" class="count"></div>
       <div id="publishedList"></div>
     </section>
@@ -192,6 +211,7 @@ const $ = id => document.getElementById(id);
 const selectedCandidates = new Set();
 let bulkBusy = false;
 let candidateLayout = localStorage.getItem("creteLiveAdminLayout") || "compact";
+let publishedLayout = localStorage.getItem("creteLivePublishedLayout") || "compact";
 
 function setCandidateLayout(layout){
   if(!["large","compact","list"].includes(layout))layout="compact";
@@ -200,6 +220,14 @@ function setCandidateLayout(layout){
   const container=$("candidates");
   if(container)container.className=layout==="large"?"":"layout-"+layout;
   document.querySelectorAll(".layout-btn").forEach(btn=>btn.classList.toggle("active",btn.dataset.layout===layout));
+}
+function setPublishedLayout(layout){
+  if(!["large","compact","list"].includes(layout))layout="compact";
+  publishedLayout=layout;
+  localStorage.setItem("creteLivePublishedLayout",layout);
+  const container=$("publishedList");
+  if(container)container.className=layout==="large"?"":"layout-"+layout;
+  document.querySelectorAll(".published-layout-btn").forEach(btn=>btn.classList.toggle("active",btn.dataset.layout===layout));
 }
 
 function esc(v) {
@@ -423,6 +451,7 @@ async function loadPublished(){
   window.publishedEvents=data||[]; renderPublished();
 }
 function renderPublished(){
+  setPublishedLayout(publishedLayout);
   const q=$("publishedSearch").value.trim().toLowerCase();
   const data=(window.publishedEvents||[]).filter(e=>[e.title,e.city,e.region,e.venue?.name].join(" ").toLowerCase().includes(q));
   $("publishedCount").textContent=`${data.length} δημοσιευμένες εκδηλώσεις`;
@@ -444,6 +473,8 @@ function renderPublished(){
 }
 $("publishedSearch").oninput=renderPublished;
 $("refreshPublished").onclick=loadPublished;
+document.querySelectorAll(".published-layout-btn").forEach(btn=>btn.onclick=()=>setPublishedLayout(btn.dataset.layout));
+setPublishedLayout(publishedLayout);
 
 async function deleteEvent(id){
   const e=(window.publishedEvents||[]).find(x=>x.id===id);
