@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="el">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Επεξεργασία υποψήφιας εκδήλωσης — Crete Live</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#f6f1e9;color:#101828}
+    .wrap{max-width:820px;margin:auto;padding:18px}
+    .top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+    .brand{font-size:24px;font-weight:850}.sub{color:#667085;font-size:14px}
+    .card{background:#fff;border:1px solid #e7e1d8;border-radius:20px;padding:18px;box-shadow:0 8px 24px rgba(16,24,40,.05)}
+    input,textarea,select{width:100%;padding:13px 14px;margin-top:7px;border:1px solid #d0d5dd;border-radius:12px;font-size:16px;background:#fff}
+    textarea{min-height:120px;resize:vertical}label{display:block;font-size:13px;font-weight:800;color:#475467;margin-top:12px}
+    button,.btn{border:0;border-radius:12px;padding:12px 16px;font-weight:800;font-size:15px;cursor:pointer;text-decoration:none;display:inline-block}
+    .save{background:#175cd3;color:#fff}.back{background:#eef2f6;color:#344054}.actions{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}.error{color:#b42318;margin-top:12px}.ok{color:#157347;margin-top:12px;font-weight:700}
+    .hidden{display:none}.empty{padding:40px 20px;text-align:center;color:#667085}
+    .poster{width:100%;max-height:520px;object-fit:contain;background:#f9fafb;border-radius:14px;margin-top:12px}
+    .source{display:inline-block;margin-top:12px;color:#b45309}.quality{margin-top:12px;padding:10px 12px;border-radius:12px;background:#fffaeb;color:#93370d;font-weight:700}
+    @media(max-width:620px){.grid2{grid-template-columns:1fr}.top{align-items:flex-start}.actions>*{width:100%;text-align:center}}
+  </style>
+</head>
+<body>
+<main class="wrap">
+  <div class="top">
+    <div><div class="brand">Διόρθωση πριν την έγκριση</div><div class="sub">Crete Live Admin</div></div>
+    <a class="btn back" href="admin.html">← Επιστροφή</a>
+  </div>
+  <div id="loading" class="card empty">Φόρτωση εγγραφής...</div>
+  <section id="editor" class="card hidden">
+    <input id="eId" type="hidden">
+    <div id="quality" class="quality hidden"></div>
+    <label>Τίτλος *</label><input id="eTitle">
+    <div class="grid2">
+      <div><label>Ημερομηνία *</label><input id="eDate" type="date"></div>
+      <div><label>Ώρα *</label><input id="eTime" type="time"></div>
+    </div>
+    <label>Χώρος / μαγαζί *</label><input id="eVenue">
+    <div class="grid2">
+      <div><label>Πόλη</label><input id="eCity"></div>
+      <div><label>Νομός / περιοχή *</label><select id="eRegion"><option value="">Επιλογή</option><option>Ηράκλειο</option><option>Χανιά</option><option>Ρέθυμνο</option><option>Λασίθι</option></select></div>
+    </div>
+    <label>Καλλιτέχνες <span class="sub">(χωρισμένοι με κόμμα)</span></label><input id="eArtists">
+    <label>Είδη μουσικής <span class="sub">(χωρισμένα με κόμμα)</span></label><input id="eGenres">
+    <div class="grid2">
+      <div><label>Τιμή / είσοδος</label><input id="ePrice"></div>
+      <div><label>Τηλέφωνο</label><input id="ePhone"></div>
+    </div>
+    <label>Poster / εικόνα URL</label><input id="ePoster">
+    <img id="posterPreview" class="poster hidden" alt="Προεπισκόπηση αφίσας">
+    <label>Περιγραφή</label><textarea id="eDescription"></textarea>
+    <a id="sourceLink" class="source hidden" target="_blank" rel="noopener noreferrer">Άνοιγμα αρχικής πηγής ↗</a>
+    <div class="actions"><button id="saveBtn" class="save">Αποθήκευση διορθώσεων</button><a class="btn back" href="admin.html">Ακύρωση</a></div>
+    <div id="msg"></div>
+  </section>
+</main>
+<script>
+const db=window.supabase.createClient("https://skstztwseipuqpqtlzfa.supabase.co","sb_publishable_lnNg0aoYe4zsBKkV9XactA_IzcWBdiJ");
+const $=id=>document.getElementById(id);
+const splitCSV=v=>String(v||"").split(",").map(x=>x.trim()).filter(Boolean);
+function updatePreview(){
+  const url=$("ePoster").value.trim();
+  $("posterPreview").classList.toggle("hidden",!url);
+  if(url)$("posterPreview").src=url;
+}
+function updateQuality(){
+  const missing=[];
+  if(!$("eTitle").value.trim())missing.push("τίτλος");
+  if(!$("eDate").value)missing.push("ημερομηνία");
+  if(!$("eTime").value)missing.push("ώρα");
+  if(!$("eVenue").value.trim())missing.push("χώρος");
+  if(!$("eRegion").value)missing.push("νομός");
+  $("quality").classList.toggle("hidden",!missing.length);
+  $("quality").textContent=missing.length?"Χρειάζονται συμπλήρωση: "+missing.join(", "):"";
+}
+async function init(){
+  const {data:{session}}=await db.auth.getSession();
+  if(!session){location.href="admin.html";return;}
+  const id=new URLSearchParams(location.search).get("id");
+  if(!id){$("loading").textContent="Δεν βρέθηκε ID εγγραφής.";return;}
+  const {data:c,error}=await db.from("ingestion_candidates").select("*").eq("id",id).single();
+  if(error){$("loading").textContent="Σφάλμα: "+error.message;return;}
+  if(c.review_status!=="pending"){$("loading").textContent="Η εγγραφή δεν βρίσκεται πλέον προς έλεγχο.";return;}
+  $("eId").value=c.id;$("eTitle").value=c.extracted_title||"";$("eDate").value=c.extracted_date||"";
+  $("eTime").value=(c.extracted_time||"").slice(0,5);$("eVenue").value=c.extracted_venue||"";
+  $("eCity").value=c.extracted_city||"";$("eRegion").value=c.extracted_region||"";
+  $("eArtists").value=(c.extracted_artists||[]).join(", ");$("eGenres").value=(c.extracted_genres||[]).join(", ");
+  $("ePrice").value=c.extracted_price||"";$("ePhone").value=c.extracted_phone||"";
+  $("ePoster").value=c.image_url||"";$("eDescription").value=c.original_text||"";
+  if(c.source_url){$("sourceLink").href=c.source_url;$("sourceLink").classList.remove("hidden");}
+  $("loading").classList.add("hidden");$("editor").classList.remove("hidden");updatePreview();updateQuality();
+}
+$("ePoster").oninput=updatePreview;
+for(const id of["eTitle","eDate","eTime","eVenue","eRegion"])$(id).addEventListener("input",updateQuality);
+$("saveBtn").onclick=async()=>{
+  const msg=$("msg"),btn=$("saveBtn");msg.textContent="";msg.className="";
+  const changes={
+    extracted_title:$("eTitle").value.trim()||null,extracted_date:$("eDate").value||null,
+    extracted_time:$("eTime").value||null,extracted_venue:$("eVenue").value.trim()||null,
+    extracted_city:$("eCity").value.trim()||null,extracted_region:$("eRegion").value||null,
+    extracted_artists:splitCSV($("eArtists").value),extracted_genres:splitCSV($("eGenres").value),
+    extracted_price:$("ePrice").value.trim()||null,extracted_phone:$("ePhone").value.trim()||null,
+    image_url:$("ePoster").value.trim()||null,original_text:$("eDescription").value.trim()||null
+  };
+  btn.disabled=true;btn.textContent="Αποθήκευση...";
+  const {error}=await db.from("ingestion_candidates").update(changes).eq("id",$("eId").value);
+  btn.disabled=false;btn.textContent="Αποθήκευση διορθώσεων";
+  if(error){msg.textContent="Σφάλμα: "+error.message;msg.className="error";return;}
+  msg.textContent="Οι διορθώσεις αποθηκεύτηκαν. Επιστρέφουμε στη λίστα...";msg.className="ok";
+  setTimeout(()=>location.href="admin.html",700);
+};
+init();
+</script>
+</body>
+</html>
