@@ -310,7 +310,7 @@ async function publishCandidate(c){
     title:c.extracted_title||"Live εκδήλωση",slug:uniqueSlug(c.extracted_title||"live"),description:c.original_text||null,
     event_date:c.extracted_date,start_time:c.extracted_time,venue_id,region:c.extracted_region||null,city:c.extracted_city||null,
     price_text:c.extracted_price||null,phone:c.extracted_phone||null,poster_url:c.image_url||null,status:"published",
-    created_via:"automation",confidence_score:c.confidence_score??null,last_verified_at:new Date().toISOString()
+    created_via:"manual",confidence_score:c.confidence_score??null,last_verified_at:new Date().toISOString()
   }).select("id").single();
   if(error)throw error;
   for(const name of(c.extracted_artists||[])){const artist_id=await getOrCreate("artists",name);const r=await db.from("event_artists").insert({event_id:event.id,artist_id});if(r.error)throw r.error;}
