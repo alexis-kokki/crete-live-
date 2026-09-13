@@ -336,14 +336,20 @@ async function rejectCandidate(id){
 }
 async function bulkApproveCandidates(){
   const items=(window.currentCandidates||[]).filter(c=>selectedCandidates.has(c.id));
-  if(!items.length||!confirm(`Να εγκριθούν και να δημοσιευτούν ${items.length} εκδηλώσεις;`))return;
+  const required=["τίτλος","ημερομηνία","ώρα","χώρος","νομός"];
+  const publishable=items.filter(c=>!candidateWarnings(c).some(x=>required.includes(x)));
+  const skipped=items.length-publishable.length;
+  if(!items.length)return;
+  if(!publishable.length)return alert("Οι επιλεγμένες εγγραφές έχουν βασικές ελλείψεις. Διόρθωσέ τες πρώτα.");
+  const warning=skipped?`\n\n${skipped} εγγραφές με βασικές ελλείψεις θα παραλειφθούν.`:"";
+  if(!confirm(`Να εγκριθούν και να δημοσιευτούν ${publishable.length} εκδηλώσεις;${warning}`))return;
   bulkBusy=true;updateBulkBar();let success=0;const failed=[];
-  for(const c of items){
-    $("bulkStatus").textContent=`Δημοσίευση ${success+failed.length+1}/${items.length}...`;
+  for(const c of publishable){
+    $("bulkStatus").textContent=`Δημοσίευση ${success+failed.length+1}/${publishable.length}...`;
     try{await publishCandidate(c);success++;}catch(err){failed.push({title:c.extracted_title,error:err.message||String(err)});}
   }
   bulkBusy=false;$("bulkStatus").textContent="";
-  alert(`Δημοσιεύτηκαν ${success}. Απέτυχαν ${failed.length}.`+(failed.length?"\n"+failed.slice(0,3).map(x=>x.title+": "+x.error).join("\n"):""));
+  alert(`Δημοσιεύτηκαν ${success}. Απέτυχαν ${failed.length}. Παραλείφθηκαν ${skipped} λόγω ελλείψεων.`+(failed.length?"\n"+failed.slice(0,3).map(x=>x.title+": "+x.error).join("\n"):""));
   await loadCandidates();
 }
 async function bulkRejectCandidates(){
