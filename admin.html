@@ -44,6 +44,20 @@
     .hint{font-size:12px;color:#667085;margin-top:5px}
     .toolbar{display:flex;gap:10px;align-items:center;margin-bottom:14px}
     .toolbar input{margin-top:0}
+    .pending-tools{display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:10px;margin-bottom:12px}
+    .pending-tools input,.pending-tools select{margin-top:0}
+    .bulkbar{position:sticky;top:8px;z-index:5;display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#101828;color:#fff;border-radius:14px;padding:10px 12px;margin-bottom:14px;box-shadow:0 8px 24px rgba(16,24,40,.18)}
+    .bulkbar .spacer{flex:1}
+    .bulkbar label{display:flex;align-items:center;gap:8px;margin:0;color:#fff}
+    .bulkbar input[type="checkbox"],.candidate-check{width:20px;height:20px;margin:0;accent-color:#b45309}
+    .candidate-head{display:flex;align-items:flex-start;gap:12px}
+    .candidate-head .title{flex:1;margin-top:0}
+    .candidate-card.selected{outline:3px solid #f59e0b;background:#fffbeb}
+    .warnings{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
+    .warning-pill{background:#fef3f2;color:#b42318;border-radius:999px;padding:5px 9px;font-size:12px;font-weight:800}
+    .bulk-status{font-size:13px;color:#d0d5dd}
+    .secondary{background:#fff;color:#344054}
+    @media (max-width:760px){.pending-tools{grid-template-columns:1fr 1fr}.pending-tools input{grid-column:1/-1}}
     a{color:#b45309}
     @media (max-width:620px){.grid2{grid-template-columns:1fr}.toolbar{flex-direction:column;align-items:stretch}}
   </style>
@@ -75,6 +89,27 @@
     </div>
 
     <section id="pendingView">
+      <div class="pending-tools">
+        <input id="pendingSearch" placeholder="Αναζήτηση τίτλου, χώρου ή καλλιτέχνη">
+        <select id="pendingRegion">
+          <option value="">Όλοι οι νομοί</option>
+          <option>Ηράκλειο</option><option>Χανιά</option><option>Ρέθυμνο</option><option>Λασίθι</option>
+        </select>
+        <select id="pendingQuality">
+          <option value="">Όλες οι εγγραφές</option>
+          <option value="complete">Πλήρεις</option>
+          <option value="missing">Με ελλείψεις</option>
+        </select>
+        <button id="refreshPending" class="ghost">Ανανέωση</button>
+      </div>
+      <div id="bulkbar" class="bulkbar hidden">
+        <label><input id="selectAllCandidates" type="checkbox"> Επιλογή όλων</label>
+        <strong id="selectedCount">0 επιλεγμένες</strong>
+        <span class="spacer"></span>
+        <button id="bulkApprove" class="approve">Έγκριση επιλεγμένων</button>
+        <button id="bulkReject" class="reject">Απόρριψη επιλεγμένων</button>
+        <span id="bulkStatus" class="bulk-status"></span>
+      </div>
       <div id="count" class="count"></div>
       <div id="candidates"></div>
     </section>
@@ -128,6 +163,8 @@
 <script>
 const db = window.supabase.createClient("https://skstztwseipuqpqtlzfa.supabase.co", "sb_publishable_lnNg0aoYe4zsBKkV9XactA_IzcWBdiJ");
 const $ = id => document.getElementById(id);
+const selectedCandidates = new Set();
+let bulkBusy = false;
 
 function esc(v) {
   return String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
@@ -187,122 +224,146 @@ async function getOrCreateVenue(name,city,region,address,phone){
   if(createError)throw createError; return created.id;
 }
 
+function candidateWarnings(c){
+  const missing=[];
+  if(!c.extracted_title)missing.push("τίτλος");
+  if(!c.extracted_date)missing.push("ημερομηνία");
+  if(!c.extracted_time)missing.push("ώρα");
+  if(!c.extracted_venue)missing.push("χώρος");
+  if(!c.extracted_region)missing.push("νομός");
+  if(!c.image_url)missing.push("αφίσα");
+  return missing;
+}
+function filteredCandidates(){
+  const q=$("pendingSearch").value.trim().toLowerCase();
+  const region=$("pendingRegion").value;
+  const quality=$("pendingQuality").value;
+  return (window.currentCandidates||[]).filter(c=>{
+    const hay=[c.extracted_title,c.extracted_venue,c.extracted_city,c.extracted_region,...(c.extracted_artists||[])].join(" ").toLowerCase();
+    const missing=candidateWarnings(c).length>0;
+    return (!q||hay.includes(q))&&(!region||c.extracted_region===region)&&(!quality||(quality==="missing"?missing:!missing));
+  });
+}
+function updateBulkBar(){
+  const visible=filteredCandidates();
+  $("bulkbar").classList.toggle("hidden",!(window.currentCandidates||[]).length);
+  $("selectedCount").textContent=`${selectedCandidates.size} επιλεγμένες`;
+  $("selectAllCandidates").checked=visible.length>0&&visible.every(c=>selectedCandidates.has(c.id));
+  $("selectAllCandidates").indeterminate=visible.some(c=>selectedCandidates.has(c.id))&&!$("selectAllCandidates").checked;
+  $("bulkApprove").disabled=bulkBusy||!selectedCandidates.size;
+  $("bulkReject").disabled=bulkBusy||!selectedCandidates.size;
+}
+function toggleCandidate(id,checked){
+  checked?selectedCandidates.add(id):selectedCandidates.delete(id);
+  document.querySelector(`[data-candidate-id="${id}"]`)?.classList.toggle("selected",checked);
+  updateBulkBar();
+}
+function renderCandidates(){
+  const data=filteredCandidates();
+  $("count").textContent=`${data.length} από ${(window.currentCandidates||[]).length} εκδηλώσεις προς έλεγχο`;
+  if(!data.length){
+    $("candidates").innerHTML='<div class="card empty">Δεν βρέθηκαν εκδηλώσεις με αυτά τα φίλτρα.</div>';
+    updateBulkBar(); return;
+  }
+  $("candidates").innerHTML=data.map(c=>{
+    const warnings=candidateWarnings(c);
+    return `
+    <article class="card candidate-card ${selectedCandidates.has(c.id)?"selected":""}" data-candidate-id="${c.id}">
+      <div class="candidate-head">
+        <input class="candidate-check" type="checkbox" aria-label="Επιλογή εκδήλωσης" ${selectedCandidates.has(c.id)?"checked":""}
+          onchange="toggleCandidate('${c.id}',this.checked)">
+        <div class="title">${esc(c.extracted_title||"Χωρίς τίτλο")}</div>
+      </div>
+      ${c.image_url?`<img src="${esc(c.image_url)}" alt="${esc(c.extracted_title||"Αφίσα εκδήλωσης")}" style="width:100%;max-height:420px;object-fit:cover;border-radius:14px;margin-bottom:14px" loading="lazy">`:""}
+      <span class="pill">${esc(c.detection_type||"candidate")}</span>
+      ${warnings.length?`<div class="warnings">${warnings.map(x=>`<span class="warning-pill">Λείπει: ${esc(x)}</span>`).join("")}</div>`:""}
+      <div class="meta">
+        <div><strong>Ημερομηνία:</strong> ${esc(formatDate(c.extracted_date))} · ${esc(formatTime(c.extracted_time))}</div>
+        <div><strong>Χώρος:</strong> ${esc(c.extracted_venue||"—")}</div>
+        <div><strong>Περιοχή:</strong> ${esc(c.extracted_city||c.extracted_region||"—")}</div>
+        ${c.extracted_artists?.length?`<div><strong>Καλλιτέχνες:</strong> ${esc(c.extracted_artists.join(", "))}</div>`:""}
+        ${c.extracted_price?`<div><strong>Τιμή:</strong> ${esc(c.extracted_price)}</div>`:""}
+        ${c.confidence_score!=null?`<div><strong>Confidence:</strong> ${esc(c.confidence_score)}%</div>`:""}
+      </div>
+      ${c.original_text?`<div class="original"><strong>Περιγραφή πηγής:</strong><br>${esc(c.original_text)}</div>`:""}
+      ${c.source_url?`<div style="margin-top:12px"><a href="${esc(c.source_url)}" target="_blank" rel="noopener noreferrer">Άνοιγμα αρχικής πηγής ↗</a></div>`:""}
+      <div class="actions">
+        <button class="approve" onclick="approveCandidate('${c.id}')">Έγκριση & Δημοσίευση</button>
+        <button class="reject" onclick="rejectCandidate('${c.id}')">Απόρριψη</button>
+      </div>
+    </article>`;
+  }).join("");
+  updateBulkBar();
+}
 async function loadCandidates(){
   $("candidates").innerHTML='<div class="empty">Φόρτωση...</div>';
   const {data,error}=await db.from("ingestion_candidates").select("*").eq("review_status","pending").order("created_at",{ascending:false});
   if(error){$("candidates").innerHTML='<div class="card error">'+esc(error.message)+'</div>';return;}
   window.currentCandidates=data||[];
-  $("count").textContent=`${data.length} εκδηλώσεις περιμένουν έλεγχο`;
-  if(!data.length){$("candidates").innerHTML='<div class="card empty">Δεν υπάρχουν εκδηλώσεις προς έλεγχο.</div>';return;}
- $("candidates").innerHTML=data.map(c=>`
-  <article class="card">
-    ${c.image_url ? `
-      <img
-        src="${esc(c.image_url)}"
-        alt="${esc(c.extracted_title || "Αφίσα εκδήλωσης")}"
-        style="width:100%;max-height:420px;object-fit:cover;border-radius:14px;margin-bottom:14px"
-        loading="lazy"
-      >
-    ` : ""}
-
-    <span class="pill">${esc(c.detection_type||"candidate")}</span>
-
-    <div class="title">${esc(c.extracted_title||"Χωρίς τίτλο")}</div>
-
-    <div class="meta">
-      <div>
-        <strong>Ημερομηνία:</strong>
-        ${esc(formatDate(c.extracted_date))} · ${esc(formatTime(c.extracted_time))}
-      </div>
-
-      <div>
-        <strong>Χώρος:</strong>
-        ${esc(c.extracted_venue||"—")}
-      </div>
-
-      <div>
-        <strong>Περιοχή:</strong>
-        ${esc(c.extracted_city||c.extracted_region||"—")}
-      </div>
-
-      ${c.extracted_artists?.length ? `
-        <div>
-          <strong>Καλλιτέχνες:</strong>
-          ${esc(c.extracted_artists.join(", "))}
-        </div>
-      ` : ""}
-
-      ${c.extracted_price ? `
-        <div>
-          <strong>Τιμή:</strong>
-          ${esc(c.extracted_price)}
-        </div>
-      ` : ""}
-
-      ${c.confidence_score != null ? `
-        <div>
-          <strong>Confidence:</strong>
-          ${esc(c.confidence_score)}%
-        </div>
-      ` : ""}
-    </div>
-
-    ${c.original_text ? `
-      <div class="original">
-        <strong>Περιγραφή πηγής:</strong><br>
-        ${esc(c.original_text)}
-      </div>
-    ` : ""}
-
-    ${c.source_url ? `
-      <div style="margin-top:12px">
-        <a
-          href="${esc(c.source_url)}"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Άνοιγμα αρχικής πηγής ↗
-        </a>
-      </div>
-    ` : ""}
-
-    <div class="actions">
-      <button class="approve" onclick="approveCandidate('${c.id}')">
-        Έγκριση & Δημοσίευση
-      </button>
-
-      <button class="reject" onclick="rejectCandidate('${c.id}')">
-        Απόρριψη
-      </button>
-    </div>
-  </article>
-`).join("");
+  selectedCandidates.clear();
+  renderCandidates();
 }
-
+async function publishCandidate(c){
+  const venue_id=c.extracted_venue?await getOrCreateVenue(c.extracted_venue,c.extracted_city,c.extracted_region,"",c.extracted_phone||""):null;
+  const {data:event,error}=await db.from("events").insert({
+    title:c.extracted_title||"Live εκδήλωση",slug:uniqueSlug(c.extracted_title||"live"),description:c.original_text||null,
+    event_date:c.extracted_date,start_time:c.extracted_time,venue_id,region:c.extracted_region||null,city:c.extracted_city||null,
+    price_text:c.extracted_price||null,phone:c.extracted_phone||null,poster_url:c.image_url||null,status:"published",
+    created_via:"automation",confidence_score:c.confidence_score??null,last_verified_at:new Date().toISOString()
+  }).select("id").single();
+  if(error)throw error;
+  for(const name of(c.extracted_artists||[])){const artist_id=await getOrCreate("artists",name);const r=await db.from("event_artists").insert({event_id:event.id,artist_id});if(r.error)throw r.error;}
+  for(const name of(c.extracted_genres||[])){const genre_id=await getOrCreate("genres",name);const r=await db.from("event_genres").insert({event_id:event.id,genre_id});if(r.error)throw r.error;}
+  const r=await db.from("ingestion_candidates").update({
+    review_status:"approved",reviewed_at:new Date().toISOString(),created_event_id:event.id,possible_duplicate_event_id:event.id
+  }).eq("id",c.id);
+  if(r.error)throw r.error;
+}
 async function approveCandidate(id){
-  const c=(window.currentCandidates||[]).find(x=>x.id===id); if(!c)return;
-  if(!confirm("Να εγκριθεί και να δημοσιευτεί;"))return;
-  try{
-    const venue_id = c.extracted_venue ? await getOrCreateVenue(c.extracted_venue,c.extracted_city,c.extracted_region,"",c.extracted_phone||"") : null;
-    const {data:event,error}=await db.from("events").insert({
-      title:c.extracted_title||"Live εκδήλωση",slug:uniqueSlug(c.extracted_title||"live"),description:c.original_text||null,
-      event_date:c.extracted_date,start_time:c.extracted_time,venue_id,region:c.extracted_region||null,city:c.extracted_city||null,
-      price_text:c.extracted_price||null,phone:c.extracted_phone||null,poster_url:c.image_url||null,status:"published",
-      created_via:"manual",confidence_score:c.confidence_score??null,last_verified_at:new Date().toISOString()
-    }).select("id").single();
-    if(error)throw error;
-    for(const name of (c.extracted_artists||[])){const artist_id=await getOrCreate("artists",name);const r=await db.from("event_artists").insert({event_id:event.id,artist_id});if(r.error)throw r.error;}
-    for(const name of (c.extracted_genres||[])){const genre_id=await getOrCreate("genres",name);const r=await db.from("event_genres").insert({event_id:event.id,genre_id});if(r.error)throw r.error;}
-    const r=await db.from("ingestion_candidates").update({review_status:"approved",possible_duplicate_event_id:event.id}).eq("id",id);
-    if(r.error)throw r.error;
-    alert("Η εκδήλωση εγκρίθηκε και δημοσιεύτηκε!"); await loadCandidates();
-  }catch(err){alert("Σφάλμα: "+(err.message||err));}
+  const c=(window.currentCandidates||[]).find(x=>x.id===id);if(!c)return;
+  if(candidateWarnings(c).some(x=>["τίτλος","ημερομηνία","ώρα","χώρος","νομός"].includes(x))){
+    if(!confirm("Η εγγραφή έχει βασικά πεδία που λείπουν. Να συνεχίσει η δημοσίευση;"))return;
+  }else if(!confirm("Να εγκριθεί και να δημοσιευτεί;"))return;
+  try{await publishCandidate(c);alert("Η εκδήλωση εγκρίθηκε και δημοσιεύτηκε!");await loadCandidates();}
+  catch(err){alert("Σφάλμα: "+(err.message||err));}
 }
 async function rejectCandidate(id){
   if(!confirm("Να απορριφθεί αυτή η εκδήλωση;"))return;
-  const {error}=await db.from("ingestion_candidates").update({review_status:"rejected"}).eq("id",id);
-  if(error)return alert("Σφάλμα: "+error.message); await loadCandidates();
+  const {error}=await db.from("ingestion_candidates").update({review_status:"rejected",reviewed_at:new Date().toISOString()}).eq("id",id);
+  if(error)return alert("Σφάλμα: "+error.message);
+  await loadCandidates();
 }
+async function bulkApproveCandidates(){
+  const items=(window.currentCandidates||[]).filter(c=>selectedCandidates.has(c.id));
+  if(!items.length||!confirm(`Να εγκριθούν και να δημοσιευτούν ${items.length} εκδηλώσεις;`))return;
+  bulkBusy=true;updateBulkBar();let success=0;const failed=[];
+  for(const c of items){
+    $("bulkStatus").textContent=`Δημοσίευση ${success+failed.length+1}/${items.length}...`;
+    try{await publishCandidate(c);success++;}catch(err){failed.push({title:c.extracted_title,error:err.message||String(err)});}
+  }
+  bulkBusy=false;$("bulkStatus").textContent="";
+  alert(`Δημοσιεύτηκαν ${success}. Απέτυχαν ${failed.length}.`+(failed.length?"\n"+failed.slice(0,3).map(x=>x.title+": "+x.error).join("\n"):""));
+  await loadCandidates();
+}
+async function bulkRejectCandidates(){
+  const ids=[...selectedCandidates];
+  if(!ids.length||!confirm(`Να απορριφθούν ${ids.length} εκδηλώσεις;`))return;
+  bulkBusy=true;updateBulkBar();
+  const {error}=await db.from("ingestion_candidates").update({review_status:"rejected",reviewed_at:new Date().toISOString()}).in("id",ids);
+  bulkBusy=false;
+  if(error){updateBulkBar();return alert("Σφάλμα: "+error.message);}
+  await loadCandidates();
+}
+$("pendingSearch").oninput=renderCandidates;
+$("pendingRegion").onchange=renderCandidates;
+$("pendingQuality").onchange=renderCandidates;
+$("refreshPending").onclick=loadCandidates;
+$("selectAllCandidates").onchange=()=>{
+  for(const c of filteredCandidates())$("selectAllCandidates").checked?selectedCandidates.add(c.id):selectedCandidates.delete(c.id);
+  renderCandidates();
+};
+$("bulkApprove").onclick=bulkApproveCandidates;
+$("bulkReject").onclick=bulkRejectCandidates;
 
 async function loadPublished(){
   $("publishedList").innerHTML='<div class="empty">Φόρτωση...</div>';
