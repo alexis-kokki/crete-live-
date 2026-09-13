@@ -57,7 +57,27 @@
     .warning-pill{background:#fef3f2;color:#b42318;border-radius:999px;padding:5px 9px;font-size:12px;font-weight:800}
     .bulk-status{font-size:13px;color:#d0d5dd}
     .secondary{background:#fff;color:#344054}
+    .layout-switcher{display:flex;gap:6px;grid-column:1/-1;align-items:center}
+    .layout-label{font-size:13px;font-weight:800;color:#475467;margin-right:4px}
+    .layout-btn{background:#eee8df;color:#344054;padding:9px 12px;font-size:13px}
+    .layout-btn.active{background:#101828;color:#fff}
+    #candidates.layout-compact{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+    #candidates.layout-compact .candidate-card{margin:0;padding:14px}
+    #candidates.layout-compact .candidate-card img{height:190px!important;max-height:190px!important}
+    #candidates.layout-compact .title{font-size:18px}
+    #candidates.layout-compact .original{max-height:92px;overflow:auto;font-size:13px}
+    #candidates.layout-compact .actions button,#candidates.layout-compact .actions .edit{padding:10px 12px;font-size:13px}
+    #candidates.layout-list .candidate-card{padding:12px 14px;margin-bottom:8px;display:grid;grid-template-columns:minmax(260px,1.5fr) minmax(250px,1fr) auto;gap:14px;align-items:center}
+    #candidates.layout-list .candidate-card>img,#candidates.layout-list .candidate-card>.pill,#candidates.layout-list .candidate-card>.warnings,#candidates.layout-list .candidate-card>.original,#candidates.layout-list .candidate-card>a,#candidates.layout-list .candidate-card>div[style]{display:none!important}
+    #candidates.layout-list .candidate-head{align-items:center}
+    #candidates.layout-list .title{font-size:16px;margin:0}
+    #candidates.layout-list .meta{font-size:13px;margin:0}
+    #candidates.layout-list .meta>div:nth-child(n+4){display:none}
+    #candidates.layout-list .actions{margin:0;justify-content:flex-end}
+    #candidates.layout-list .actions button,#candidates.layout-list .actions .edit{padding:9px 10px;font-size:12px}
+    @media (max-width:900px){#candidates.layout-list .candidate-card{grid-template-columns:1fr}.layout-label{display:none}}
     @media (max-width:760px){.pending-tools{grid-template-columns:1fr 1fr}.pending-tools input{grid-column:1/-1}}
+    @media (max-width:520px){#candidates.layout-compact{grid-template-columns:1fr}.layout-switcher{overflow:auto}.layout-btn{white-space:nowrap}}
     a{color:#b45309}
     @media (max-width:620px){.grid2{grid-template-columns:1fr}.toolbar{flex-direction:column;align-items:stretch}}
   </style>
@@ -101,6 +121,12 @@
           <option value="missing">Με ελλείψεις</option>
         </select>
         <button id="refreshPending" class="ghost">Ανανέωση</button>
+        <div class="layout-switcher" aria-label="Διάταξη προβολής">
+          <span class="layout-label">Διάταξη:</span>
+          <button class="layout-btn" data-layout="large" type="button">▣ Μεγάλες</button>
+          <button class="layout-btn" data-layout="compact" type="button">▦ Μικρές</button>
+          <button class="layout-btn" data-layout="list" type="button">☷ Λίστα</button>
+        </div>
       </div>
       <div id="bulkbar" class="bulkbar hidden">
         <label><input id="selectAllCandidates" type="checkbox"> Επιλογή όλων</label>
@@ -165,6 +191,16 @@ const db = window.supabase.createClient("https://skstztwseipuqpqtlzfa.supabase.c
 const $ = id => document.getElementById(id);
 const selectedCandidates = new Set();
 let bulkBusy = false;
+let candidateLayout = localStorage.getItem("creteLiveAdminLayout") || "compact";
+
+function setCandidateLayout(layout){
+  if(!["large","compact","list"].includes(layout))layout="compact";
+  candidateLayout=layout;
+  localStorage.setItem("creteLiveAdminLayout",layout);
+  const container=$("candidates");
+  if(container)container.className=layout==="large"?"":"layout-"+layout;
+  document.querySelectorAll(".layout-btn").forEach(btn=>btn.classList.toggle("active",btn.dataset.layout===layout));
+}
 
 function esc(v) {
   return String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
@@ -259,6 +295,7 @@ function toggleCandidate(id,checked){
   updateBulkBar();
 }
 function renderCandidates(){
+  setCandidateLayout(candidateLayout);
   const data=filteredCandidates();
   $("count").textContent=`${data.length} από ${(window.currentCandidates||[]).length} εκδηλώσεις προς έλεγχο`;
   if(!data.length){
@@ -371,6 +408,8 @@ $("selectAllCandidates").onchange=()=>{
 };
 $("bulkApprove").onclick=bulkApproveCandidates;
 $("bulkReject").onclick=bulkRejectCandidates;
+document.querySelectorAll(".layout-btn").forEach(btn=>btn.onclick=()=>setCandidateLayout(btn.dataset.layout));
+setCandidateLayout(candidateLayout);
 
 async function loadPublished(){
   $("publishedList").innerHTML='<div class="empty">Φόρτωση...</div>';
