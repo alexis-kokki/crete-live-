@@ -43,6 +43,10 @@
     .preview-dialog::backdrop{background:#10182899}
     .preview-dialog img{width:100%;max-height:300px;object-fit:contain;border-radius:12px;background:#f2f4f7}
     .preview-dialog p{white-space:pre-wrap;line-height:1.5}
+    .review-list{max-height:190px;overflow:auto;margin:8px 0 18px;padding-left:22px}
+    .review-list li{padding:5px 0;overflow-wrap:anywhere}
+    .review-reasons{font-size:13px;color:#b42318}
+    .review-actions{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap}
     .meta{display:grid;gap:6px;margin:12px 0;color:#475467}
     .title{font-size:22px;font-weight:850;margin:10px 0}
     .original{background:#f9fafb;border-radius:12px;padding:12px;margin-top:12px;white-space:pre-wrap;color:#344054}
@@ -229,6 +233,14 @@
   <dialog id="candidatePreview" class="preview-dialog" aria-label="Προεπισκόπηση εκδήλωσης">
     <button id="closePreview" class="ghost" type="button" style="float:right">Κλείσιμο</button>
     <div id="previewContent"></div>
+  </dialog>
+  <dialog id="bulkReview" class="preview-dialog" aria-labelledby="bulkReviewTitle">
+    <h2 id="bulkReviewTitle">Έλεγχος μαζικής δημοσίευσης</h2>
+    <div id="bulkReviewContent"></div>
+    <div class="review-actions">
+      <button id="cancelBulkReview" class="ghost" type="button">Ακύρωση</button>
+      <button id="confirmBulkReview" class="approve" type="button">Δημοσίευση</button>
+    </div>
   </dialog>
 </main>
 
@@ -487,7 +499,7 @@ async function approveCandidate(id){
   const c=(window.currentCandidates||[]).find(x=>x.id===id);if(!c)return;
   try{
     const issues=await approvalIssues(c);
-    const required=["τίτλος","ημερομηνία","ώρα","χώρος","νομός","ημερομηνία στο παρελθόν"];
+    const required=["τίτλος","ημερομηνία","ώρα","χώρος","νομός","αφίσα","αφίσα που δεν φορτώνει","ημερομηνία στο παρελθόν","πιθανό διπλότυπο δημοσιευμένης εκδήλωσης"];
     if(issues.some(x=>required.includes(x))){
       alert("Διόρθωσε πρώτα τα υποχρεωτικά στοιχεία: "+issues.join(", "));return;
     }
@@ -502,31 +514,62 @@ async function rejectCandidate(id){
   if(error)return alert("Σφάλμα: "+error.message);
   await loadCandidates();
 }
+function reviewBulkPublication(ready,skipped,failed){
+  const list=(items,withReasons)=>items.length
+    ?'<ol class="review-list">'+items.map(item=>'<li>'+esc(item.title||"Χωρίς τίτλο")+
+      (item.extracted_date?' · '+esc(formatDate(item.extracted_date)):'')+
+      (withReasons?'<div class="review-reasons">'+esc((item.issues||[item.error]).join(", "))+'</div>':'')+'</li>').join("")+'</ol>'
+    :'<p class="sub">Καμία</p>';
+  $("bulkReviewContent").innerHTML=
+    '<p>Θα δημοσιευτούν '+ready.length+' · Θα παραλειφθούν '+skipped.length+' · Σφάλματα ελέγχου '+failed.length+'</p>'+
+    '<h3>Προς δημοσίευση</h3>'+list(ready,false)+
+    '<h3>Παραλείπονται</h3>'+list(skipped,true)+
+    (failed.length?'<h3>Σφάλματα ελέγχου</h3>'+list(failed,true):'');
+  $("confirmBulkReview").disabled=!ready.length;
+  $("confirmBulkReview").textContent="Δημοσίευση "+ready.length+" εκδηλώσεων";
+  const dialog=$("bulkReview");
+  return new Promise(resolve=>{
+    let done=false;
+    const finish=answer=>{if(done)return;done=true;dialog.close();resolve(answer)};
+    $("confirmBulkReview").onclick=()=>finish(true);
+    $("cancelBulkReview").onclick=()=>finish(false);
+    dialog.oncancel=e=>{e.preventDefault();finish(false)};
+    dialog.showModal();
+  });
+}
 async function bulkApproveCandidates(){
   const items=(window.currentCandidates||[]).filter(c=>selectedCandidates.has(c.id));
-  if(!items.length)return;
+  if(!items.length||bulkBusy)return;
   bulkBusy=true;updateBulkBar();
-  const ready=[],skipped=[],failed=[];
-  for(const c of items){
-    $("bulkStatus").textContent="Έλεγχος "+(ready.length+skipped.length+failed.length+1)+"/"+items.length+"...";
-    try{
-      const issues=await approvalIssues(c);
-      if(issues.length)skipped.push({title:c.extracted_title,issues});
-      else ready.push(c);
-    }catch(err){failed.push({title:c.extracted_title,error:err.message||String(err)});}
+  const ready=[],skipped=[],failed=[],seen=new Set();
+  try{
+    for(const c of items){
+      $("bulkStatus").textContent="Έλεγχος "+(ready.length+skipped.length+failed.length+1)+"/"+items.length+"...";
+      try{
+        const issues=await approvalIssues(c);
+        const key=String(c.extracted_date||"")+"|"+String(c.extracted_title||"").trim().toLocaleLowerCase("el");
+        if(!issues.length&&seen.has(key))issues.push("διπλότυπο μέσα στην επιλογή");
+        if(issues.length)skipped.push({title:c.extracted_title,extracted_date:c.extracted_date,issues});
+        else{ready.push(c);seen.add(key)}
+      }catch(err){failed.push({title:c.extracted_title,extracted_date:c.extracted_date,error:err.message||String(err)});}
+    }
+    $("bulkStatus").textContent="";
+    if(!await reviewBulkPublication(ready,skipped,failed))return;
+    let success=0;
+    for(const c of ready){
+      $("bulkStatus").textContent="Δημοσίευση "+(success+1)+"/"+ready.length+"...";
+      try{
+        const issues=await approvalIssues(c);
+        if(issues.length){skipped.push({title:c.extracted_title,issues});continue}
+        await publishCandidate(c);success++;
+      }catch(err){failed.push({title:c.extracted_title,error:err.message||String(err)});}
+    }
+    alert("Δημοσιεύτηκαν "+success+". Παραλείφθηκαν "+skipped.length+". Απέτυχαν "+failed.length+
+      (failed.length?"\n"+failed.map(x=>(x.title||"Χωρίς τίτλο")+": "+x.error).join("\n"):""));
+    await loadCandidates();
+  }finally{
+    bulkBusy=false;updateBulkBar();$("bulkStatus").textContent="";
   }
-  if(!ready.length){bulkBusy=false;updateBulkBar();$("bulkStatus").textContent="";alert("Δεν βρέθηκαν εγγραφές χωρίς εκκρεμή προβλήματα. Παραλείφθηκαν "+skipped.length+".");return;}
-  if(!confirm("Να εγκριθούν και να δημοσιευτούν "+ready.length+" εκδηλώσεις; "+skipped.length+" θα παραλειφθούν λόγω ελλείψεων ή πιθανού διπλοτύπου.")){
-    bulkBusy=false;updateBulkBar();$("bulkStatus").textContent="";return;
-  }
-  let success=0;
-  for(const c of ready){
-    $("bulkStatus").textContent="Δημοσίευση "+(success+1)+"/"+ready.length+"...";
-    try{await publishCandidate(c);success++;}catch(err){failed.push({title:c.extracted_title,error:err.message||String(err)});}
-  }
-  bulkBusy=false;updateBulkBar();$("bulkStatus").textContent="";
-  alert("Δημοσιεύτηκαν "+success+". Παραλείφθηκαν "+skipped.length+". Απέτυχαν "+failed.length+".");
-  await loadCandidates();
 }
 async function bulkRejectCandidates(){
   const ids=[...selectedCandidates];
