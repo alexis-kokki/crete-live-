@@ -31,6 +31,18 @@
     .tab.active{background:#101828;color:white}
     .pill{display:inline-block;background:#fff3df;color:#9a4d00;border-radius:999px;padding:6px 10px;font-weight:800;font-size:13px}
     .published-pill{background:#ecfdf3;color:#027a48}
+    .poster{width:100%;max-height:320px;object-fit:cover;border-radius:12px;margin:10px 0}
+    .poster-error{background:#fff4e5;color:#9a4d00;border-radius:10px;padding:11px;margin:10px 0;font-weight:700}
+    #publishedList.layout-compact .poster{height:185px}
+    #publishedList.layout-list .poster,#publishedList.layout-list .poster-error{display:none}
+    .history-tools{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+    .history-tools input{flex:1;min-width:210px;margin:0}
+    .history-tools select{width:auto;min-width:165px;margin:0}
+    .history-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+    .preview-dialog{border:0;border-radius:18px;max-width:620px;width:calc(100% - 30px);max-height:85vh;overflow:auto;padding:22px;box-shadow:0 20px 60px #0004}
+    .preview-dialog::backdrop{background:#10182899}
+    .preview-dialog img{width:100%;max-height:300px;object-fit:contain;border-radius:12px;background:#f2f4f7}
+    .preview-dialog p{white-space:pre-wrap;line-height:1.5}
     .meta{display:grid;gap:6px;margin:12px 0;color:#475467}
     .title{font-size:22px;font-weight:850;margin:10px 0}
     .original{background:#f9fafb;border-radius:12px;padding:12px;margin-top:12px;white-space:pre-wrap;color:#344054}
@@ -118,6 +130,7 @@
     <div class="tabs">
       <button id="tabPending" class="tab active">Προς έλεγχο</button>
       <button id="tabPublished" class="tab">Δημοσιευμένες</button>
+      <button id="tabHistory" class="tab">Ιστορικό</button>
       <button id="tabNew" class="tab">+ Νέα εκδήλωση</button>
     </div>
 
@@ -168,6 +181,16 @@
       <div id="publishedList"></div>
     </section>
 
+    <section id="historyView" class="hidden">
+      <div class="history-tools">
+        <input id="historySearch" placeholder="Αναζήτηση στο ιστορικό">
+        <select id="historyStatus"><option value="">Όλες οι αποφάσεις</option><option value="approved">Εγκεκριμένες</option><option value="rejected">Απορριφθείσες</option></select>
+        <button id="refreshHistory" class="ghost">Ανανέωση</button>
+      </div>
+      <div id="historyCount" class="count"></div>
+      <div id="historyList"></div>
+    </section>
+
     <section id="newView" class="hidden">
       <div class="card">
         <div class="form-title">Νέα εκδήλωση</div>
@@ -203,6 +226,10 @@
       </div>
     </section>
   </section>
+  <dialog id="candidatePreview" class="preview-dialog" aria-label="Προεπισκόπηση εκδήλωσης">
+    <button id="closePreview" class="ghost" type="button" style="float:right">Κλείσιμο</button>
+    <div id="previewContent"></div>
+  </dialog>
 </main>
 
 <script>
@@ -258,15 +285,17 @@ $("loginBtn").onclick = async()=>{
 $("logoutBtn").onclick = async()=>{await db.auth.signOut();await showCorrectView();};
 
 function setTab(which){
-  for(const name of ["pending","published","new"]){
+  for(const name of ["pending","published","history","new"]){
     $(name+"View").classList.toggle("hidden",name!==which);
     $("tab"+name[0].toUpperCase()+name.slice(1)).classList.toggle("active",name===which);
   }
   if(which==="pending") loadCandidates();
   if(which==="published") loadPublished();
+  if(which==="history") loadHistory();
 }
 $("tabPending").onclick=()=>setTab("pending");
 $("tabPublished").onclick=()=>setTab("published");
+$("tabHistory").onclick=()=>setTab("history");
 $("tabNew").onclick=()=>setTab("new");
 
 async function getOrCreate(table,name){
@@ -288,6 +317,36 @@ async function getOrCreateVenue(name,city,region,address,phone){
   if(createError)throw createError; return created.id;
 }
 
+const failedImageUrls = new Set();
+function localToday(){
+  return new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Athens",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+}
+function markCandidateImageError(id){
+  const c=(window.currentCandidates||[]).find(item=>item.id===id);
+  if(!c)return;
+  failedImageUrls.add(c.image_url);
+  const card=document.querySelector('[data-candidate-id="'+id+'"]');
+  const img=card?.querySelector(".candidate-poster");
+  if(img)img.hidden=true;
+  if(card&&!card.querySelector(".poster-error")){
+    const box=document.createElement("div");
+    box.className="poster-error";
+    box.textContent="Η αφίσα δεν φορτώνει. Έλεγξε ή άλλαξε το URL πριν από τη δημοσίευση.";
+    img?.after(box);
+  }
+}
+function checkImage(url){
+  if(!url)return Promise.resolve(false);
+  return new Promise(resolve=>{
+    const img=new Image();
+    let settled=false;
+    const finish=ok=>{if(settled)return;settled=true;clearTimeout(timer);resolve(ok)};
+    const timer=setTimeout(()=>finish(false),8000);
+    img.onload=()=>finish(img.naturalWidth>0);
+    img.onerror=()=>finish(false);
+    img.src=url;
+  });
+}
 function candidateWarnings(c){
   const missing=[];
   if(!c.extracted_title)missing.push("τίτλος");
@@ -296,6 +355,8 @@ function candidateWarnings(c){
   if(!c.extracted_venue)missing.push("χώρος");
   if(!c.extracted_region)missing.push("νομός");
   if(!c.image_url)missing.push("αφίσα");
+  else if(!/^https?:\/\//i.test(c.image_url)||failedImageUrls.has(c.image_url))missing.push("αφίσα που δεν φορτώνει");
+  if(c.extracted_date&&c.extracted_date<localToday())missing.push("ημερομηνία στο παρελθόν");
   return missing;
 }
 function filteredCandidates(){
@@ -339,7 +400,7 @@ function renderCandidates(){
           onchange="toggleCandidate('${c.id}',this.checked)">
         <div class="title">${esc(c.extracted_title||"Χωρίς τίτλο")}</div>
       </div>
-      ${c.image_url?`<img src="${esc(c.image_url)}" alt="${esc(c.extracted_title||"Αφίσα εκδήλωσης")}" style="width:100%;max-height:420px;object-fit:cover;border-radius:14px;margin-bottom:14px" loading="lazy">`:""}
+      ${c.image_url?`<img class="candidate-poster" src="${esc(c.image_url)}" alt="${esc(c.extracted_title||"Αφίσα εκδήλωσης")}" style="width:100%;max-height:420px;object-fit:cover;border-radius:14px;margin-bottom:14px" loading="lazy" onerror="markCandidateImageError('${c.id}')">`:'<div class="poster-error">Δεν έχει καταχωριστεί αφίσα.</div>'}
       <span class="pill">${esc(c.detection_type||"candidate")}</span>
       ${warnings.length?`<div class="warnings">${warnings.map(x=>`<span class="warning-pill">Λείπει: ${esc(x)}</span>`).join("")}</div>`:""}
       <div class="meta">
@@ -353,6 +414,7 @@ function renderCandidates(){
       ${c.original_text?`<div class="original"><strong>Περιγραφή πηγής:</strong><br>${esc(c.original_text)}</div>`:""}
       ${c.source_url?`<div style="margin-top:12px"><a href="${esc(c.source_url)}" target="_blank" rel="noopener noreferrer">Άνοιγμα αρχικής πηγής ↗</a></div>`:""}
       <div class="actions">
+        <button class="ghost" type="button" onclick="previewCandidate('${c.id}')">Προεπισκόπηση</button>
         <a class="edit" href="admin-candidate-edit.html?id=${encodeURIComponent(c.id)}">Επεξεργασία</a>
         <button class="approve" onclick="approveCandidate('${c.id}')">Έγκριση & Δημοσίευση</button>
         <button class="reject" onclick="rejectCandidate('${c.id}')">Απόρριψη</button>
@@ -385,13 +447,54 @@ async function publishCandidate(c){
   }).eq("id",c.id);
   if(r.error)throw r.error;
 }
+function previewCandidate(id){
+  const c=(window.currentCandidates||[]).find(item=>item.id===id);
+  if(!c)return;
+  $("previewContent").innerHTML=`
+    <span class="pill">Προεπισκόπηση πριν από τη δημοσίευση</span>
+    ${c.image_url?`<img src="${esc(c.image_url)}" alt="${esc(c.extracted_title||"Αφίσα")}" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><div class="poster-error" hidden>Η αφίσα δεν φορτώνει.</div>`:'<div class="poster-error">Δεν έχει καταχωριστεί αφίσα.</div>'}
+    <h2>${esc(c.extracted_title||"Χωρίς τίτλο")}</h2>
+    <div class="meta">
+      <div><strong>Ημερομηνία:</strong> ${esc(formatDate(c.extracted_date))} · ${esc(formatTime(c.extracted_time))}</div>
+      <div><strong>Χώρος:</strong> ${esc(c.extracted_venue||"—")}</div>
+      <div><strong>Περιοχή:</strong> ${esc(c.extracted_city||c.extracted_region||"—")}</div>
+      <div><strong>Καλλιτέχνες:</strong> ${esc((c.extracted_artists||[]).join(", ")||"—")}</div>
+      <div><strong>Είσοδος:</strong> ${esc(c.extracted_price||"Δεν αναφέρεται")}</div>
+    </div>
+    <p>${esc(c.original_text||"Δεν υπάρχει περιγραφή.")}</p>`;
+  $("candidatePreview").showModal();
+}
+$("closePreview").onclick=()=>$("candidatePreview").close();
+$("candidatePreview").onclick=e=>{if(e.target===$("candidatePreview"))$("candidatePreview").close();};
+async function approvalIssues(c){
+  const problems=candidateWarnings(c);
+  if(c.image_url&&/^https?:\/\//i.test(c.image_url)){
+    if(!await checkImage(c.image_url)){
+      failedImageUrls.add(c.image_url);
+      if(!problems.includes("αφίσα που δεν φορτώνει"))problems.push("αφίσα που δεν φορτώνει");
+      markCandidateImageError(c.id);
+    }
+  }
+  if(!c.extracted_title||!c.extracted_date)return problems;
+  const {data,error}=await db.from("events").select("id")
+    .eq("status","published").eq("event_date",c.extracted_date)
+    .eq("title",c.extracted_title).limit(1);
+  if(error)throw error;
+  if(data?.length)problems.push("πιθανό διπλότυπο δημοσιευμένης εκδήλωσης");
+  return problems;
+}
 async function approveCandidate(id){
   const c=(window.currentCandidates||[]).find(x=>x.id===id);if(!c)return;
-  if(candidateWarnings(c).some(x=>["τίτλος","ημερομηνία","ώρα","χώρος","νομός"].includes(x))){
-    if(!confirm("Η εγγραφή έχει βασικά πεδία που λείπουν. Να συνεχίσει η δημοσίευση;"))return;
-  }else if(!confirm("Να εγκριθεί και να δημοσιευτεί;"))return;
-  try{await publishCandidate(c);alert("Η εκδήλωση εγκρίθηκε και δημοσιεύτηκε!");await loadCandidates();}
-  catch(err){alert("Σφάλμα: "+(err.message||err));}
+  try{
+    const issues=await approvalIssues(c);
+    const required=["τίτλος","ημερομηνία","ώρα","χώρος","νομός","ημερομηνία στο παρελθόν"];
+    if(issues.some(x=>required.includes(x))){
+      alert("Διόρθωσε πρώτα τα υποχρεωτικά στοιχεία: "+issues.join(", "));return;
+    }
+    const warning=issues.length?"\n\nΈλεγχος: "+issues.join(", "):"";
+    if(!confirm("Να εγκριθεί και να δημοσιευτεί;"+warning))return;
+    await publishCandidate(c);alert("Η εκδήλωση εγκρίθηκε και δημοσιεύτηκε!");await loadCandidates();
+  }catch(err){alert("Σφάλμα: "+(err.message||err));}
 }
 async function rejectCandidate(id){
   if(!confirm("Να απορριφθεί αυτή η εκδήλωση;"))return;
@@ -401,20 +504,28 @@ async function rejectCandidate(id){
 }
 async function bulkApproveCandidates(){
   const items=(window.currentCandidates||[]).filter(c=>selectedCandidates.has(c.id));
-  const required=["τίτλος","ημερομηνία","ώρα","χώρος","νομός"];
-  const publishable=items.filter(c=>!candidateWarnings(c).some(x=>required.includes(x)));
-  const skipped=items.length-publishable.length;
   if(!items.length)return;
-  if(!publishable.length)return alert("Οι επιλεγμένες εγγραφές έχουν βασικές ελλείψεις. Διόρθωσέ τες πρώτα.");
-  const warning=skipped?`\n\n${skipped} εγγραφές με βασικές ελλείψεις θα παραλειφθούν.`:"";
-  if(!confirm(`Να εγκριθούν και να δημοσιευτούν ${publishable.length} εκδηλώσεις;${warning}`))return;
-  bulkBusy=true;updateBulkBar();let success=0;const failed=[];
-  for(const c of publishable){
-    $("bulkStatus").textContent=`Δημοσίευση ${success+failed.length+1}/${publishable.length}...`;
+  bulkBusy=true;updateBulkBar();
+  const ready=[],skipped=[],failed=[];
+  for(const c of items){
+    $("bulkStatus").textContent="Έλεγχος "+(ready.length+skipped.length+failed.length+1)+"/"+items.length+"...";
+    try{
+      const issues=await approvalIssues(c);
+      if(issues.length)skipped.push({title:c.extracted_title,issues});
+      else ready.push(c);
+    }catch(err){failed.push({title:c.extracted_title,error:err.message||String(err)});}
+  }
+  if(!ready.length){bulkBusy=false;updateBulkBar();$("bulkStatus").textContent="";alert("Δεν βρέθηκαν εγγραφές χωρίς εκκρεμή προβλήματα. Παραλείφθηκαν "+skipped.length+".");return;}
+  if(!confirm("Να εγκριθούν και να δημοσιευτούν "+ready.length+" εκδηλώσεις; "+skipped.length+" θα παραλειφθούν λόγω ελλείψεων ή πιθανού διπλοτύπου.")){
+    bulkBusy=false;updateBulkBar();$("bulkStatus").textContent="";return;
+  }
+  let success=0;
+  for(const c of ready){
+    $("bulkStatus").textContent="Δημοσίευση "+(success+1)+"/"+ready.length+"...";
     try{await publishCandidate(c);success++;}catch(err){failed.push({title:c.extracted_title,error:err.message||String(err)});}
   }
-  bulkBusy=false;$("bulkStatus").textContent="";
-  alert(`Δημοσιεύτηκαν ${success}. Απέτυχαν ${failed.length}. Παραλείφθηκαν ${skipped} λόγω ελλείψεων.`+(failed.length?"\n"+failed.slice(0,3).map(x=>x.title+": "+x.error).join("\n"):""));
+  bulkBusy=false;updateBulkBar();$("bulkStatus").textContent="";
+  alert("Δημοσιεύτηκαν "+success+". Παραλείφθηκαν "+skipped.length+". Απέτυχαν "+failed.length+".");
   await loadCandidates();
 }
 async function bulkRejectCandidates(){
@@ -439,6 +550,37 @@ $("bulkReject").onclick=bulkRejectCandidates;
 document.querySelectorAll(".layout-btn").forEach(btn=>btn.onclick=()=>setCandidateLayout(btn.dataset.layout));
 setCandidateLayout(candidateLayout);
 
+async function loadHistory(){
+  $("historyList").innerHTML='<div class="empty">Φόρτωση...</div>';
+  const {data,error}=await db.from("ingestion_candidates")
+    .select("id,source_url,extracted_title,extracted_date,extracted_venue,review_status,reviewed_at,created_event_id")
+    .in("review_status",["approved","rejected"])
+    .order("reviewed_at",{ascending:false}).limit(500);
+  if(error){$("historyList").innerHTML='<div class="card error">'+esc(error.message)+'</div>';return;}
+  window.reviewHistory=data||[];renderHistory();
+}
+function renderHistory(){
+  const q=$("historySearch").value.trim().toLowerCase(),status=$("historyStatus").value;
+  const rows=(window.reviewHistory||[]).filter(c=>(!status||c.review_status===status)&&
+    (!q||[c.extracted_title,c.extracted_venue].join(" ").toLowerCase().includes(q)));
+  $("historyCount").textContent=rows.length+" αποφάσεις (έως 500 πρόσφατες)";
+  $("historyList").innerHTML=rows.length?rows.map(c=>`
+    <article class="card history-row">
+      <div>
+        <span class="pill ${c.review_status==="approved"?"published-pill":""}">${c.review_status==="approved"?"Εγκρίθηκε":"Απορρίφθηκε"}</span>
+        <div class="title">${esc(c.extracted_title||"Χωρίς τίτλο")}</div>
+        <div class="sub">${esc(formatDate(c.extracted_date))} · ${esc(c.extracted_venue||"—")} · Απόφαση: ${esc(c.reviewed_at?new Date(c.reviewed_at).toLocaleString("el-GR"):"Χωρίς ημερομηνία")}</div>
+      </div>
+      <div class="actions">
+        ${c.source_url?`<a href="${esc(c.source_url)}" target="_blank" rel="noopener noreferrer">Πηγή ↗</a>`:""}
+        ${c.created_event_id?`<a class="edit" href="admin-edit.html?id=${encodeURIComponent(c.created_event_id)}">Εκδήλωση</a>`:""}
+      </div>
+    </article>`).join(""):'<div class="card empty">Δεν βρέθηκαν αποφάσεις.</div>';
+}
+$("historySearch").oninput=renderHistory;
+$("historyStatus").onchange=renderHistory;
+$("refreshHistory").onclick=loadHistory;
+
 async function loadPublished(){
   $("publishedList").innerHTML='<div class="empty">Φόρτωση...</div>';
   const {data,error}=await db.from("events").select(`
@@ -459,6 +601,7 @@ function renderPublished(){
   $("publishedList").innerHTML=data.map(e=>`
     <article class="card">
       <span class="pill published-pill">Δημοσιευμένη</span>
+      ${e.image_url||e.poster_url?`<img class="poster" src="${esc(e.image_url||e.poster_url)}" alt="${esc(e.title)}" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><div class="poster-error" hidden>Η αφίσα δεν φορτώνει.</div>`:'<div class="poster-error">Δεν έχει καταχωριστεί αφίσα.</div>'}
       <div class="title">${esc(e.title)}</div>
       <div class="meta">
         <div><strong>Ημερομηνία:</strong> ${esc(formatDate(e.event_date))} · ${esc(formatTime(e.start_time))}</div>
