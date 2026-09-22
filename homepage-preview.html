@@ -64,6 +64,51 @@
     @media(max-width:990px){.topnav>a{padding:12px}.topnav>a:after{bottom:4px;left:12px;right:12px}}
     @media(max-width:600px){.shortcut-label{width:100%;margin:3px 0}.shortcuts{gap:12px}.shortcuts button{padding:9px 12px;font-size:12px}}
     @media(prefers-reduced-motion:reduce){.carousel-track,.shortcuts button,.topnav>a:after{transition:none}}
+
+    /* Crete Live visual direction: a warm night venue, with the real posters in focus. */
+    :root{--ink:#f7f1ec;--muted:#b8aebb;--cream:#170e22;--orange:#e99757;--night:#100a1a;--line:#49334e}
+    body{background:#170e22;color:#f7f1ec}
+    .preview-ribbon{background:#281b31;color:#bdb0bd;border-bottom:1px solid #47344a}
+    .topbar{background:#170e22f2;border-color:#49334e;box-shadow:0 8px 28px #0d071630;backdrop-filter:blur(16px)}
+    .logo{color:#fff}.logo span{color:#efa46d}
+    .topnav{color:#e0d4e1}.topnav a:hover,.nav-dropdown>button:hover{color:#efa46d}
+    .topnav>a.active{color:#f4ae79}.topnav>a:after{background:#ef9e63}
+    .nav-menu{background:#2b1a38;border:1px solid #654768}
+    .nav-action{background:#492143;color:#fff2e9;border-color:#74435f;box-shadow:none}
+    .nav-action:hover{background:#713256}.menu-toggle{background:#281b31;color:#fff;border-color:#654768}
+    .hero{position:relative;isolation:isolate;background:radial-gradient(ellipse at 83% 28%,#71307980 0%,transparent 37%),radial-gradient(ellipse at 7% 76%,#67294d6b 0%,transparent 42%),linear-gradient(125deg,#170b28 0%,#260d3c 54%,#180c2e 100%)}
+    .hero:before{content:"";position:absolute;z-index:-1;inset:0;opacity:.18;pointer-events:none;background-image:radial-gradient(#eac1da 1px,transparent 1px);background-size:17px 17px;mask-image:linear-gradient(95deg,transparent 24%,#000 85%)}
+    .hero-grid{min-height:680px}.hero .eyebrow{color:#f1b487}.hero h1{color:#fff;letter-spacing:-.055em;text-shadow:0 10px 35px #0d07164d}.hero h1 em{color:#ffbb80}
+    .hero p{color:#dbccde}.eyebrow{color:#e6a271}
+    .search{background:#fbf7f3;border:1px solid #fff8;box-shadow:0 20px 45px #0b051b50}.search input{background:transparent;color:#271927}.search input::placeholder{color:#766b78}
+    .search button,.primary{background:#bc5e3e;color:#fff}.search button:hover,.primary:hover{background:#d6754e}
+    .shortcut-label{color:#ccbaca}.shortcuts button{background:#ffffff16;color:#f7e9f0;border-color:#ffffff30;box-shadow:none}
+    .shortcuts button:hover{background:#ffffff2c;box-shadow:none}.shortcuts button.active{background:#d88155;border-color:#d88155;color:#241322}
+    .hero-visual:before{inset:2% -35vw 2% 19%;border-radius:300px 0 0 300px;background:radial-gradient(ellipse at 20% 45%,#d7828654,transparent 48%),linear-gradient(110deg,#4b235f38,#8c39704d 65%,#79355b30);filter:blur(2px)}
+    .hero-frame{border:1px solid #f0ccdf6b;border-radius:20px;background:#241729;box-shadow:0 35px 95px #0a041b99,0 0 65px #cb648029}
+    .hero-frame img{background:#251728}.hero-frame.is-portrait{background:#2c1d31}
+    .hero-frame.is-portrait:after{background:linear-gradient(90deg,#341c3580,#211328a8 45%,#24152bf5 68%,#24152b)}
+    .hero-frame.is-portrait .hero-backdrop{opacity:.24}
+    .hero-frame.is-portrait .hero-editorial{color:#fff}.hero-editorial p{color:#d0c0cc}.hero-editorial .event-date{color:#ffbc86}
+    .hero-frame.is-portrait .hero-editorial .eyebrow{color:#efac7b}
+    .hero-controls,.hero-frame.is-portrait .hero-controls{background:linear-gradient(transparent,#140b23e8)}
+    .hero-event-link{background:#f8e7da;border-color:#f8e7da;color:#321b2d}.hero-event-link:hover{background:#e89969;border-color:#e89969}
+    .round,.hero-controls .round{background:#fff3ed;color:#321b2d;border-color:#f7e6df}
+    .dots button.active{background:#f2aa76}
+    .soft{background:#21162d}section.content{border-top:1px solid #ffffff0c}
+    .section-head h2,.feature h2,.last-card h2{color:#fff}.section-head p,.last-card p{color:#c3b7c5}.link{color:#f2af7e}
+    .event-card,.venue,.last-card,.artist-tile,.empty{background:#2a1d35;border-color:#49354a;color:#f6eff1;box-shadow:0 12px 34px #09051124}
+    .event-card:hover,.artist-tile:hover{box-shadow:0 18px 42px #09051170;border-color:#8b5674}
+    .event-card img,.poster-fallback{background:#211629}.poster-fallback{color:#dc9d77}
+    .card-date,.venue-icon{color:#efad7d}.card-text p,.venue small{color:#c5b9c7}
+    .carousel-arrow{background:#f8e9df;color:#2c1a2c;border-color:#f6d9ca}
+    .artist-avatar{background:linear-gradient(145deg,#955b72,#543554);color:#fff}
+    .feature{background:radial-gradient(circle at 87% 10%,#77456080,transparent 37%),linear-gradient(115deg,#4d263e,#351d41);border:1px solid #a3687866;box-shadow:0 20px 60px #0c071744}
+    .feature p{color:#ead6df}.feature small{color:#ddb9c9}.feature .primary{background:#f8e7da;color:#311c2c}
+    .last-card button{background:#a75348}.footer{background:#100b1a;border-top:1px solid #654968}.footer a{color:#edab78}
+    .status{background:#291c32;color:#e4d4e2}dialog{background:#271a32;color:#fff}.modal-inner p{color:#d5c5d2}
+    @media(max-width:990px){.topnav{background:#291b34;border:1px solid #60415f}.topnav a,.nav-dropdown>button{color:#f4eaf0}}
+    @media(max-width:600px){.hero-grid{min-height:0}.hero-visual:before{left:8%;opacity:.8}}
   </style>
 </head>
 <body>
